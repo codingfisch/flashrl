@@ -10,6 +10,7 @@ pip install torch Cython tensorboard plotille pillow pandas tqdm
 1. Compile RL envs via `python setup.py build_ext --inplace`
 2. Train via `python train.py`
 3. See the magic unfold in your terminal 🪄
+
 ![train](https://github.com/user-attachments/assets/46db059f-8958-4f13-8ff9-b4a98580e054)
 
 ## Acknowledgements 🙌
