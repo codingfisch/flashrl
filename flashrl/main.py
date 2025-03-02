@@ -10,8 +10,8 @@ HPARAMS = {'lr': .01, 'anneal_lr': True, 'gamma': .99, 'gae_lambda': .95, 'clip_
 
 
 class Learner:
-    def __init__(self, game, model, precision='medium'):
-        self.env = game
+    def __init__(self, env, model, precision='medium'):
+        self.env = env
         self.model = model
         torch.set_float32_matmul_precision(precision)
 
