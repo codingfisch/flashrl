@@ -3,10 +3,10 @@ from flashrl import HPARAMS, set_seed, Learner, LSTMPolicy
 from flashrl.envs import render_gif, render_ascii, Grid
 set_seed(SEED:=1)
 
-ITERATIONS = 50
+ITERATIONS = 500
 BS = 8*1024
 DURATION = 32
-N_HIDDEN = 128
+N_HIDDEN = 64
 #HPARAMS['lr'] = 1e-2
 LOG = False
 PRINT_METRICS = ('loss', 'policy_loss', 'value_loss', 'entropy_loss')

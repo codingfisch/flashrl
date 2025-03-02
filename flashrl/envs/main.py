@@ -18,9 +18,10 @@ class Env:
         self.rewards = np.zeros(n_envs, dtype=np.float32)
         self.dones = np.zeros(n_envs, dtype=np.float32)
 
-    @property
-    def torch_obs(self):
-        return torch.from_numpy(self.obs).to(dtype=self.dtype, device=self.device)
+    def get_tensor(self, x, device=None, dtype=None, non_blocking=True):
+        device = device or self.device
+        dtype = dtype or self.dtype
+        return torch.from_numpy(x).to(device=device, dtype=dtype, non_blocking=non_blocking)
 
 
 def render_ascii(obs, obs_max, obs_min=0, fps=4, data=None):

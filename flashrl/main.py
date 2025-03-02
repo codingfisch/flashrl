@@ -11,7 +11,7 @@ HPARAMS = {'lr': .01, 'anneal_lr': True, 'gamma': .99, 'gae_lambda': .95, 'clip_
 
 class Learner:
     def __init__(self, game, model, precision='medium'):
-        self.game = game
+        self.env = game
         self.model = model
         torch.set_float32_matmul_precision(precision)
 
@@ -21,13 +21,16 @@ class Learner:
         lr, anneal_lr = hparams.pop('lr'), hparams.pop('anneal_lr')
         opt = torch.optim.Adam(self.model.parameters(), lr=lr, eps=1e-5)
         pbar = tqdm(range(iterations), total=iterations)
+        obs, values, acts, logprobs, np_rewards, np_dones = self.get_buffers(duration)
+        hc = torch.zeros((2, self.env.n_envs, self.model.lstm.hidden_size), dtype=self.env.dtype, device=self.env.device)
         for i in pbar:
             opt.param_groups[0]['lr'] = lr * (1 - i / iterations) if anneal_lr else lr
-            obs, values, acts, logprobs, rewards, dones = evaluate(self.game, self.model, duration)
+            obs, values, acts, logprobs, rewards, dones = evaluate(self.env, self.model, duration, obs, values, acts, logprobs, np_rewards, np_dones, state=(hc[0], hc[1]))
             metrics = train(self.model, opt, obs, values, acts, logprobs, rewards, dones, bs=bs, **hparams)
             pbar.set_description(f'reward: {rewards.mean():.3f}')
-            dt = time.time() - pbar.start_t
-            pbar.set_postfix({'': f'{1e-6 * self.game.n_envs * duration * (i + 1) / dt:.1f}million steps/s'})
+            dt = time.time() - (t if i > 0 else pbar.start_t)
+            pbar.set_postfix({'': f'{1e-6 * self.env.n_envs * duration / dt:.1f}million steps/s'})
+            t = time.time()
             if log:
                 for k, v in metrics.items():
                     logger.add_scalar(k, v, global_step=i)
@@ -42,37 +45,50 @@ class Learner:
                 print_plot(metric_curves[k], k)
         return metric_curves
 
+    def get_buffers(self, duration):
+        shape = (self.env.n_envs, duration)
+        obs = torch.empty((*shape, *self.env.obs_shape), dtype=self.env.dtype, device=self.env.device)
+        values = torch.empty(shape, dtype=self.env.dtype, device=self.env.device)
+        acts = torch.empty(shape, dtype=torch.int32, device=self.env.device)
+        logprobs = torch.empty(shape, dtype=self.env.dtype, device=self.env.device)
+        np_rewards = np.empty(shape, dtype=np.float32)
+        np_dones = np.empty(shape, dtype=np.float32)
+        return obs, values, acts, logprobs, np_rewards, np_dones
+
     def rollout(self, duration, seed=None, idx=0, obs_attr='obs', extra_attrs=None):
-        self.game.reset(seed)
+        self.env.reset(seed)
         attrs = [obs_attr] + list(extra_attrs or ())
         data = {k: [] for k in attrs}
         state = None
         for _ in range(duration):
-            act, logprob, entropy, value, state = self.model(self.game.torch_obs, state, with_entropy='entropy' in attrs)
+            o = self.env.get_tensor(self.env.obs)
+            act, logprob, entropy, value, state = self.model(o, state, with_entropy='entropy' in attrs)
             for attr in attrs:
                 if attr in ('act', 'logprob', 'entropy', 'value'):
                     x = {'act': act, 'logprob': logprob, 'entropy': entropy, 'value': value}[attr]
                     x = x.detach().float().cpu().numpy()
                 else:
-                    x = getattr(self.game, attr).copy()
+                    x = getattr(self.env, attr).copy()
                 data[attr].append(x[idx])
-            self.game.step(act.cpu().numpy())
+            self.env.step(act.cpu().numpy())
         data = {k: np.stack(xs) for k, xs in data.items()}
         obs = data.pop(obs_attr)
         return obs, data
 
 
-def evaluate(game, model, duration, state=None):
-    obs, values, acts, logprobs, rewards, dones = [], [], [], [], [], []
-    for _ in range(duration):
-        o = game.torch_obs
+def evaluate(env, model, duration, obs, values, acts, logprobs, np_rewards, np_dones, state=None):
+    for i in range(duration):
+        o =  env.get_tensor(env.obs)
         with torch.no_grad():
             act, logp, _, value, state = model(o, state=state)
-        obs, values, acts, logprobs = obs + [o], values + [value], acts + [act], logprobs + [logp]
-        rewards, dones = rewards + [game.rewards.copy()], dones + [game.dones.copy()]
-        game.step(act.cpu().numpy())
-    return tuple([torch.stack(xs, dim=1) for xs in [obs, values, acts, logprobs]] +
-                 [torch.from_numpy(np.stack(xs, axis=1)).to(game.device) for xs in [rewards, dones]])
+        obs[:, i] = o
+        values[:, i] = value
+        acts[:, i] = act
+        logprobs[:, i] = logp
+        np_rewards[:, i] = env.rewards
+        np_dones[:, i] = env.dones
+        env.step(act.cpu().numpy())
+    return obs, values, acts, logprobs, env.get_tensor(np_rewards), env.get_tensor(np_dones)
 
 
 def train(model, opt, obs, values, acts, logprobs, rewards, dones, bs, gamma=.99, gae_lambda=.95, clip_coef=.1,
