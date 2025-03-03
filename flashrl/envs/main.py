@@ -38,7 +38,7 @@ class Env:
 
 def render_ascii(obs, obs_max, obs_min=0, fps=4, data=None):
     obs = (23 * (obs.astype(np.float32) - obs_min) / (obs_max - obs_min)).astype(np.uint8) + 232
-    for i, o in enumerate(obs):
+    for i, o in enumerate(obs):#.transpose(0, 2, 1)):
         print(f'step {i}')
         for row in range(o.shape[0]):
             for col in range(o.shape[1]):

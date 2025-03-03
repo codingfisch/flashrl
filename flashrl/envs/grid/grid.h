@@ -5,10 +5,9 @@ const char AGENT = 1, GOAL = 2;
 const unsigned char NOOP = 0, LEFT = 1, RIGHT = 2, UP = 3, DOWN = 4;
 
 typedef struct {
-    char* obs;
-    unsigned char* act;
-    float* reward;
-    float* done;
+    char *obs;
+    unsigned char *act;
+    float *reward, *done;
     int size, t, x, y, goal_x, goal_y;
 } Grid;
 

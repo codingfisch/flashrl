@@ -3,19 +3,19 @@ from libc.stdlib cimport free, srand, calloc
 
 cdef extern from 'grid.h':
     ctypedef struct Grid:
-        char* obs
-        unsigned char* act
-        float* reward
-        float* done
+        char *obs
+        unsigned char *act
+        float *reward
+        float *done
         int size, t, x, y, goal_x, goal_y
 
-    void c_reset(Grid* env)
-    void c_step(Grid* env)
+    void c_reset(Grid *env)
+    void c_step(Grid *env)
 
 
 cdef class CyGrid:
     cdef:
-        Grid* envs
+        Grid *envs
         size_t n
 
     def __init__(self, char[:, :, :] obs, unsigned char[:] acts, float[:] rewards, float[:] dones, size_t n, int size):

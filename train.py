@@ -1,5 +1,5 @@
 from flashrl import HPARAMS, set_seed, print_table, Learner, LSTMPolicy
-from flashrl.envs import render_gif, render_ascii, Grid
+from flashrl.envs import render_gif, render_ascii, Grid, Pong
 set_seed(SEED:=1)
 
 ITERATIONS = 40
@@ -14,7 +14,8 @@ SHOW_DATA = ('acts', 'rewards', 'dones', 'logprob', 'entropy', 'value')
 DEVICE = 'cuda'  # even 'cpu' is surprisingly fast...
 DTYPE = 'bfloat16'  # ...with float32
 
-env = Grid(n_envs=2*BS, size=SIZE, device=DEVICE, dtype=DTYPE).reset(seed=SEED)
+#env = Grid(n_envs=2*BS, size=SIZE, device=DEVICE, dtype=DTYPE).reset(seed=SEED)
+env = Pong(n_envs=2*BS, device=DEVICE, dtype=DTYPE).reset(seed=SEED)
 model = LSTMPolicy(env, n_hidden=N_HIDDEN).to(device=env.device, dtype=env.dtype)
 learn = Learner(env, model)
 learn(ITERATIONS, DURATION, BS, HPARAMS.copy(), log=LOG, print_metrics=PRINT_METRICS)  # Training happens here!
