@@ -17,6 +17,18 @@ class Env:
         self.acts = np.zeros(n_envs, dtype=np.uint8)
         self.rewards = np.zeros(n_envs, dtype=np.float32)
         self.dones = np.zeros(n_envs, dtype=np.float32)
+        self.c_envs = None
+
+    def reset(self, seed=None):
+        self.c_envs.reset(seed)
+        return self
+
+    def step(self, acts):
+        self.acts[:] = acts
+        self.c_envs.step()
+
+    def close(self):
+        self.c_envs.close()
 
     def get_tensor(self, x, device=None, dtype=None, non_blocking=True):
         device = device or self.device
