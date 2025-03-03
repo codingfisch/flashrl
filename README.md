@@ -11,7 +11,9 @@ pip install torch Cython tensorboard plotille pillow tqdm
 2. Train via `python train.py`
 3. See the magic unfold in your terminal 🪄
 
-<img src="https://github.com/user-attachments/assets/4ac3f6f0-972b-4ee8-bf93-ba4c905b3b92" width="100%">
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/4ac3f6f0-972b-4ee8-bf93-ba4c905b3b92">
+</p>
 
 ## Acknowledgements 🙌
 I want to thank
