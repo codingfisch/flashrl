@@ -1,7 +1,7 @@
-import time
 import torch
 import numpy as np
 from tqdm import tqdm
+from time import time
 from torch.utils.tensorboard import SummaryWriter
 
 from .utils import print_plot
@@ -22,15 +22,15 @@ class Learner:
         opt = torch.optim.Adam(self.model.parameters(), lr=lr, eps=1e-5)
         pbar = tqdm(range(iterations), total=iterations)
         obs, values, acts, logprobs, np_rewards, np_dones = self.get_buffers(duration)
-        hc = torch.zeros((2, self.env.n_envs, self.model.lstm.hidden_size), dtype=self.env.dtype, device=self.env.device)
+        hc = torch.zeros((2, len(values), self.model.lstm.hidden_size), dtype=self.env.dtype, device=self.env.device)
         for i in pbar:
+            t0 = time()
             opt.param_groups[0]['lr'] = lr * (1 - i / iterations) if anneal_lr else lr
-            obs, values, acts, logprobs, rewards, dones = evaluate(self.env, self.model, duration, obs, values, acts, logprobs, np_rewards, np_dones, state=(hc[0], hc[1]))
+            obs, values, acts, logprobs, rewards, dones = evaluate(self.env, self.model, duration, obs, values, acts,
+                                                                   logprobs, np_rewards, np_dones, state=(hc[0], hc[1]))
             metrics = train(self.model, opt, obs, values, acts, logprobs, rewards, dones, bs=bs, **hparams)
             pbar.set_description(f'reward: {rewards.mean():.3f}')
-            dt = time.time() - (t if i > 0 else pbar.start_t)
-            pbar.set_postfix({'': f'{1e-6 * self.env.n_envs * duration / dt:.1f}million steps/s'})
-            t = time.time()
+            pbar.set_postfix({'': f'{1e-6 * self.env.n_envs * duration / (time() - t0):.1f}million steps/s'})
             if log:
                 for k, v in metrics.items():
                     logger.add_scalar(k, v, global_step=i)
@@ -49,7 +49,7 @@ class Learner:
         shape = (self.env.n_envs, duration)
         obs = torch.empty((*shape, *self.env.obs_shape), dtype=self.env.dtype, device=self.env.device)
         values = torch.empty(shape, dtype=self.env.dtype, device=self.env.device)
-        acts = torch.empty(shape, dtype=torch.int32, device=self.env.device)
+        acts = torch.empty(shape, dtype=torch.uint8, device=self.env.device)
         logprobs = torch.empty(shape, dtype=self.env.dtype, device=self.env.device)
         np_rewards = np.empty(shape, dtype=np.float32)
         np_dones = np.empty(shape, dtype=np.float32)
