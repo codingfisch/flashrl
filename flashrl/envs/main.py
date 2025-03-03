@@ -40,16 +40,15 @@ def render_ascii(obs, obs_max, obs_min=0, fps=4, data=None):
     obs = (23 * (obs.astype(np.float32) - obs_min) / (obs_max - obs_min)).astype(np.uint8) + 232
     for i, o in enumerate(obs):
         print(f'step {i}')
-        for row in o:
-            for item in row:
-                print(f"\033[48;5;{item}m  \033[0m", end='')
+        for row in range(o.shape[0]):
+            for col in range(o.shape[1]):
+                print(f"\033[48;5;{o[row, col]}m  \033[0m", end='')
+            if row < len(data):
+                print(f'{list(data)[row]}: {list(data.values())[row][i]}', end='')
             print()
-        for k, x in data.items():
-            print(f'{k}: {x[i]}')
         if i < len(obs) - 1:
             time.sleep(1 / fps)
-            len_extra_data = 0 if data is None else len(data)
-            print(f'\033[A\033[{len(o) + len_extra_data + 1}A')
+            print(f'\033[A\033[{len(o) + 1}A')
 
 
 def render_gif(filepath, obs, obs_max, obs_min=0, upscale=64, fps=2, loop=0, data=None):
