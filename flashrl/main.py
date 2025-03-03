@@ -15,7 +15,7 @@ class Learner:
         self.model = model
         torch.set_float32_matmul_precision(precision)
 
-    def __call__(self, iterations, bs, duration, hparams, target_kl=None, log=False, print_metrics=None):
+    def __call__(self, iterations, duration, bs, hparams, log=False, print_metrics=None, target_kl=None):
         metrics_curves = []
         logger = SummaryWriter() if log else None
         lr, anneal_lr = hparams.pop('lr'), hparams.pop('anneal_lr')
