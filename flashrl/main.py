@@ -15,7 +15,7 @@ class Learner:
         self.model = model
         torch.set_float32_matmul_precision(precision)
 
-    def __call__(self, iterations, duration, bs, hparams, log=False, print_metrics=None, target_kl=None):
+    def fit(self, iterations, duration, bs, hparams, log=False, print_metrics=None, target_kl=None, pbar_desc='reward'):
         metrics_curves = []
         logger = SummaryWriter() if log else None
         lr, anneal_lr = hparams.pop('lr'), hparams.pop('anneal_lr')
@@ -29,7 +29,7 @@ class Learner:
             obs, values, acts, logprobs, rewards, dones = evaluate(self.env, self.model, duration, obs, values, acts,
                                                                    logprobs, np_rewards, np_dones, state=(hc[0], hc[1]))
             metrics = train(self.model, opt, obs, values, acts, logprobs, rewards, dones, bs=bs, **hparams)
-            pbar.set_description(f'reward: {rewards.mean():.3f}')
+            pbar.set_description(f'done: {dones.mean():.3f}' if pbar_desc == 'done' else f'reward: {rewards.mean():.3f}')
             pbar.set_postfix({'': f'{1e-6 * self.env.n_envs * duration / (time() - t0):.1f}million steps/s'})
             if log:
                 for k, v in metrics.items():
