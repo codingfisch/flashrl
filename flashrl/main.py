@@ -4,12 +4,15 @@ from time import time
 from torch.utils.tensorboard import SummaryWriter
 
 from .models import LSTMPolicy
+DEVICE = 'mps' if torch.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 class Learner:
-    def __init__(self, env, model=None):
+    def __init__(self, env, model=None, device=None, dtype=None):
         self.env = env
-        self.model = LSTMPolicy(self.env).to(self.env.device, self.env.dtype) if model is None else model
+        self.device = DEVICE if device is None else device
+        self.dtype = torch.bfloat16 if self.device == 'cuda' else torch.float32 if dtype is None else dtype
+        self.model = LSTMPolicy(self.env).to(self.device, self.dtype) if model is None else model
         self._data, self._np_data = None, None
 
     @property
@@ -26,7 +29,7 @@ class Learner:
             opt.param_groups[0]['lr'] = lr * (1 - i / iters) if anneal_lr else lr
             self.rollout(steps)
             metrics = ppo(self.model, opt, **self._data, **hparams)
-            pbar.set_postfix_str(f'{1e-6 * self.env.n_envs * steps / (time() - pbar.last_print_t):.1f}million steps/s')
+            pbar.set_postfix_str(f'{1e-6 * len(self.env.obs) * steps / (time() - pbar.last_print_t):.1f}M steps/s')
             pbar.set_description(f'{pbar_desc}: {self._data[pbar_desc + "s"].mean():.3f}')
             if log:
                 for k, v in metrics.items(): logger.add_scalar(k, v, global_step=i)
@@ -37,8 +40,8 @@ class Learner:
         return {k: [m[k].item() for m in curves] for k in curves[0]}
 
     def setup_data(self, duration):
-        values = torch.empty((self.env.n_envs, duration), dtype=self.env.dtype, device=self.env.device)
-        obs = torch.empty((*values.shape, *self.env.obs_shape), dtype=self.env.dtype, device=self.env.device)
+        values = torch.empty((len(self.env.obs), duration), dtype=self.dtype, device=self.device)
+        obs = torch.empty((*values.shape, *self.env.obs.shape[1:]), dtype=self.dtype, device=self.device)
         self._data = {'obs': obs, 'values': values, 'acts': values.clone().byte(), 'logprobs': values.clone()}
         self._np_data = {'rewards': values.float().cpu().numpy(), 'dones': values.float().cpu().numpy()}
 
@@ -54,10 +57,10 @@ class Learner:
             self._np_data['rewards'][:, i] = self.env.rewards
             self._np_data['dones'][:, i] = self.env.dones
             self.env.step(act.cpu().numpy())
-        self._data.update({k: self.to_torch(v, non_blocking=True) for k, v in self._np_data.items()})
+        self._data.update({k: self.to_torch(v) for k, v in self._np_data.items()})
 
-    def to_torch(self, x, device=None, dtype=None, **kwargs):
-        return torch.from_numpy(x).to(device=device or self.env.device, dtype=dtype or self.env.dtype, **kwargs)
+    def to_torch(self, x, non_blocking=True):
+        return torch.from_numpy(x).to(device=self.device, dtype=self.dtype, non_blocking=non_blocking)
 
 
 def ppo(model, opt, obs, values, acts, logprobs, rewards, dones, bs=8192, gamma=.99, gae_lambda=.95, clip_coef=.1,

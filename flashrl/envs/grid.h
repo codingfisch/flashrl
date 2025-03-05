@@ -9,9 +9,9 @@ typedef struct {
     unsigned char *act;
     float *reward, *done;
     int size, t, x, y, goal_x, goal_y;
-} Grid;
+} CGrid;
 
-void c_reset(Grid* env) {
+void c_reset(CGrid* env) {
     env->t = 0;
     memset(env->obs, 0, env->size * env->size);
     env->x = env->y = env->size / 2;
@@ -22,7 +22,7 @@ void c_reset(Grid* env) {
     env->obs[env->goal_x + env->goal_y * env->size] = GOAL;
 }
 
-void c_step(Grid* env) {
+void c_step(CGrid* env) {
     env->reward[0] = 0;
     env->done[0] = 0;
     env->obs[env->x + env->y * env->size] = 0;

@@ -11,9 +11,9 @@ typedef struct {
     float *reward0, *reward1, *done0, *done1;
     int size_x, size_y, t, paddle0_x, paddle0_y, paddle1_x, paddle1_y, x, dx;
     float y, dy, max_dy;
-} Pong;
+} CPong;
 
-void set_obs(Pong* env, char paddle, char ball) {
+void set_obs(CPong* env, char paddle, char ball) {
     for (int i = -1; i < 2; i++) {
         if (env->paddle0_y + i >= 0 && env->paddle0_y + i <= env->size_y - 1) {
             env->obs0[(env->size_x - 1) - env->paddle0_x + (env->paddle0_y + i) * env->size_x] = paddle;
@@ -28,7 +28,7 @@ void set_obs(Pong* env, char paddle, char ball) {
     env->obs1[env->x + (int)(roundf(env->y)) * env->size_x] = ball;
 }
 
-void c_reset(Pong* env) {
+void c_reset(CPong* env) {
     env->t = 0;
     memset(env->obs0, 0, env->size_x * env->size_y);
     memset(env->obs1, 0, env->size_x * env->size_y);
@@ -42,7 +42,7 @@ void c_reset(Pong* env) {
     set_obs(env, PADDLE, BALL);
 }
 
-void c_step(Pong* env) {
+void c_step(CPong* env) {
     env->reward0[0] = env->reward1[0] = 0;
     env->done0[0] = env->done1[0] = 0;
     set_obs(env, 0, 0);

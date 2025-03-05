@@ -27,7 +27,7 @@ def print_ascii_curves(data_dict, keys=None, height=8, width=65):
 
 def render_ascii(learn, keys=None, fps=4, env_idx=0):
     keys = learn.scalar_data_keys if keys is None else [keys] if isinstance(keys, str) else keys
-    obs = (learn._data['obs'] - learn.env.obs_min) / (learn.env.obs_max - learn.env.obs_min)
+    obs = (learn._data['obs'] - learn._data['obs'].min()) / (learn._data['obs'].max() - learn._data['obs'].min())
     obs = (23 * obs[env_idx]).byte().cpu().numpy() + 232
     for i, o in enumerate(obs):
         print(f'step {i}')
@@ -44,7 +44,7 @@ def render_ascii(learn, keys=None, fps=4, env_idx=0):
 
 def render_gif(filepath, learn, keys=None, upscale=64, fps=2, loop=0, env_idx=0):
     keys = learn.scalar_data_keys if keys is None else [keys] if isinstance(keys, str) else keys
-    obs = (learn._data['obs'] - learn.env.obs_min) / (learn.env.obs_max - learn.env.obs_min)
+    obs = (learn._data['obs'] - learn._data['obs'].min()) / (learn._data['obs'].max() - learn._data['obs'].min())
     obs = (255 * obs[env_idx]).byte().cpu().numpy()
     font_size = obs.shape[-1] * upscale // 32
     frames = []
