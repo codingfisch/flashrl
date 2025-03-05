@@ -1,98 +1,66 @@
 import torch
-import numpy as np
 from tqdm import tqdm
 from time import time
 from torch.utils.tensorboard import SummaryWriter
 
-from .utils import print_plot
-HPARAMS = {'lr': .01, 'anneal_lr': True, 'gamma': .99, 'gae_lambda': .95, 'clip_coef': .1,
-           'value_coef': .5, 'value_clip_coef': .1, 'entropy_coef': .01, 'max_grad_norm': .5, 'norm_adv': True}
+from .models import LSTMPolicy
 
 
 class Learner:
-    def __init__(self, env, model, precision='medium'):
+    def __init__(self, env, model=None, precision='medium'):
         self.env = env
-        self.model = model
+        self.model = LSTMPolicy(self.env).to(self.env.device, self.env.dtype) if model is None else model
+        self._data, self._np_data = None, None
         torch.set_float32_matmul_precision(precision)
 
-    def fit(self, iterations, duration, bs, hparams, log=False, print_metrics=None, target_kl=None, pbar_desc='reward'):
+    def fit(self, iters=40, steps=16, lr=.01, anneal_lr=True, log=False, pbar_desc=None, target_kl=None, **hparams):
+        self.setup_data(steps)
         metrics_curves = []
         logger = SummaryWriter() if log else None
-        lr, anneal_lr = hparams.pop('lr'), hparams.pop('anneal_lr')
         opt = torch.optim.Adam(self.model.parameters(), lr=lr, eps=1e-5)
-        pbar = tqdm(range(iterations), total=iterations)
-        obs, values, acts, logprobs, np_rewards, np_dones = self.get_buffers(duration)
-        hc = torch.zeros((2, len(values), self.model.lstm.hidden_size), dtype=self.env.dtype, device=self.env.device)
+        pbar = tqdm(range(iters), total=iters)
+        hc = torch.zeros((2, self.env.n_envs, self.model.lstm.hidden_size), dtype=self.env.dtype, device=self.env.device)
         for i in pbar:
             t0 = time()
-            opt.param_groups[0]['lr'] = lr * (1 - i / iterations) if anneal_lr else lr
-            obs, values, acts, logprobs, rewards, dones = evaluate(self.env, self.model, duration, obs, values, acts,
-                                                                   logprobs, np_rewards, np_dones, state=(hc[0], hc[1]))
-            metrics = train(self.model, opt, obs, values, acts, logprobs, rewards, dones, bs=bs, **hparams)
-            pbar.set_description(f'done: {dones.mean():.3f}' if pbar_desc == 'done' else f'reward: {rewards.mean():.3f}')
-            pbar.set_postfix({'': f'{1e-6 * self.env.n_envs * duration / (time() - t0):.1f}million steps/s'})
+            opt.param_groups[0]['lr'] = lr * (1 - i / iters) if anneal_lr else lr
+            self.rollout(steps, state=(hc[0], hc[1]))
+            metrics = ppo(self.model, opt, **self._data, **hparams)
+            pbar.set_description(f'{pbar_desc}: {self._data[pbar_desc+"s"].mean():.3f}')
+            pbar.set_postfix_str(f'{1e-6 * self.env.n_envs * steps / (time() - t0):.1f}million steps/s')
             if log:
-                for k, v in metrics.items():
-                    logger.add_scalar(k, v, global_step=i)
-                for name, param in self.model.named_parameters():
-                    logger.add_histogram(name, param, global_step=i)
+                for k, v in metrics.items(): logger.add_scalar(k, v, global_step=i)
+                for name, param in self.model.named_parameters(): logger.add_histogram(name, param, global_step=i)
             metrics_curves.append(metrics)
             if target_kl is not None:
                 if metrics['kl'] > target_kl: break
-        metric_curves = {k: [m[k].item() for m in metrics_curves] for k in metrics_curves[0]}
-        if print_metrics is not None:
-            for k in print_metrics:
-                print_plot(metric_curves[k], k)
-        return metric_curves
+        return {k: [m[k].item() for m in metrics_curves] for k in metrics_curves[0]}
 
-    def get_buffers(self, duration):
-        shape = (self.env.n_envs, duration)
-        obs = torch.empty((*shape, *self.env.obs_shape), dtype=self.env.dtype, device=self.env.device)
-        values = torch.empty(shape, dtype=self.env.dtype, device=self.env.device)
-        acts = torch.empty(shape, dtype=torch.uint8, device=self.env.device)
-        logprobs = torch.empty(shape, dtype=self.env.dtype, device=self.env.device)
-        np_rewards = np.empty(shape, dtype=np.float32)
-        np_dones = np.empty(shape, dtype=np.float32)
-        return obs, values, acts, logprobs, np_rewards, np_dones
+    def setup_data(self, duration):
+        values = torch.empty((self.env.n_envs, duration), dtype=self.env.dtype, device=self.env.device)
+        obs = torch.empty((*values.shape, *self.env.obs_shape), dtype=self.env.dtype, device=self.env.device)
+        self._data = {'obs': obs, 'values': values, 'acts': values.clone().byte(), 'logprobs': values.clone()}
+        self._np_data = {'rewards': values.float().cpu().numpy(), 'dones': values.float().cpu().numpy()}
 
-    def rollout(self, duration, seed=None, idx=0, obs_attr='obs', extra_attrs=None):
-        self.env.reset(seed)
-        attrs = [obs_attr] + list(extra_attrs or ())
-        data = {k: [] for k in attrs}
-        state = None
-        for _ in range(duration):
-            o = self.env.get_tensor(self.env.obs)
-            act, logprob, entropy, value, state = self.model(o, state, with_entropy='entropy' in attrs)
-            for attr in attrs:
-                if attr in ('act', 'logprob', 'entropy', 'value'):
-                    x = {'act': act, 'logprob': logprob, 'entropy': entropy, 'value': value}[attr]
-                    x = x.detach().float().cpu().numpy()
-                else:
-                    x = getattr(self.env, attr).copy()
-                data[attr].append(x[idx])
+    def rollout(self, duration, state=None):
+        for i in range(duration):
+            o = self.to_torch(self.env.obs)
+            with torch.no_grad():
+                act, logp, _, value, state = self.model(o, state=state)
+            self._data['obs'][:, i] = o
+            self._data['values'][:, i] = value
+            self._data['acts'][:, i] = act
+            self._data['logprobs'][:, i] = logp
+            self._np_data['rewards'][:, i] = self.env.rewards
+            self._np_data['dones'][:, i] = self.env.dones
             self.env.step(act.cpu().numpy())
-        data = {k: np.stack(xs) for k, xs in data.items()}
-        obs = data.pop(obs_attr)
-        return obs, data
+        self._data.update({k: self.to_torch(v, non_blocking=True) for k, v in self._np_data.items()})
+
+    def to_torch(self, x, device=None, dtype=None, **kwargs):
+        return torch.from_numpy(x).to(device=device or self.env.device, dtype=dtype or self.env.dtype, **kwargs)
 
 
-def evaluate(env, model, duration, obs, values, acts, logprobs, np_rewards, np_dones, state=None):
-    for i in range(duration):
-        o =  env.get_tensor(env.obs)
-        with torch.no_grad():
-            act, logp, _, value, state = model(o, state=state)
-        obs[:, i] = o
-        values[:, i] = value
-        acts[:, i] = act
-        logprobs[:, i] = logp
-        np_rewards[:, i] = env.rewards
-        np_dones[:, i] = env.dones
-        env.step(act.cpu().numpy())
-    return obs, values, acts, logprobs, env.get_tensor(np_rewards), env.get_tensor(np_dones)
-
-
-def train(model, opt, obs, values, acts, logprobs, rewards, dones, bs, gamma=.99, gae_lambda=.95, clip_coef=.1,
-          value_coef=.5, value_clip_coef=.1, entropy_coef=.01, max_grad_norm=.5, norm_adv=True):
+def ppo(model, opt, obs, values, acts, logprobs, rewards, dones, bs=8192, gamma=.99, gae_lambda=.95,
+        clip_coef=.1, value_coef=.5, value_clip_coef=.1, entropy_coef=.01, max_grad_norm=.5, norm_adv=True):
     advs = get_advantages(values, rewards, dones, gamma=gamma, gae_lambda=gae_lambda)
     obs, values, acts, logprobs, advs = [xs.view(-1, bs, *xs.shape[2:]) for xs in [obs, values, acts, logprobs, advs]]
     returns = advs + values
@@ -116,8 +84,7 @@ def train(model, opt, obs, values, acts, logprobs, rewards, dones, bs, gamma=.99
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
         opt.step()
-        with torch.no_grad():
-            kl, clip_frac = ((ratio - 1) - logratio).mean(), ((ratio - 1).abs() > clip_coef).float().mean()
+        kl, clip_frac = ((ratio - 1) - logratio).mean(), ((ratio - 1).abs() > clip_coef).float().mean()
         metrics.append([loss, policy_loss, value_loss, entropy, kl, clip_frac])
     return {k: torch.stack([values[i] for values in metrics]).mean() for i, k in enumerate(metric_keys)}
 
