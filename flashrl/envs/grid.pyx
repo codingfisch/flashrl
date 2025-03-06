@@ -4,7 +4,59 @@ cimport numpy as np
 
 from libc.stdlib cimport free, srand, calloc
 
-cdef extern from 'grid.h':
+cdef extern from *:
+    '''
+#include <stdlib.h>
+#include <string.h>
+
+const char AGENT = 1, GOAL = 2;
+const unsigned char NOOP = 0, LEFT = 1, RIGHT = 2, UP = 3, DOWN = 4;
+
+typedef struct {
+    char *obs;
+    unsigned char *act;
+    float *reward, *done;
+    int size, t, x, y, goal_x, goal_y;
+} CGrid;
+
+void c_reset(CGrid* env) {
+    env->t = 0;
+    memset(env->obs, 0, env->size * env->size);
+    env->x = env->y = env->size / 2;
+    env->obs[env->x + env->y * env->size] = AGENT;
+    env->goal_x = rand() % env->size;
+    env->goal_y = rand() % env->size;
+    if (env->goal_x == env->x && env->goal_y == env->y) env->goal_x++;
+    env->obs[env->goal_x + env->goal_y * env->size] = GOAL;
+}
+
+void c_step(CGrid* env) {
+    env->reward[0] = 0;
+    env->done[0] = 0;
+    env->obs[env->x + env->y * env->size] = 0;
+    unsigned char act = env->act[0];
+    if (act == LEFT) env->x--;
+    else if (act == RIGHT) env->x++;
+    else if (act == UP) env->y--;
+    else if (act == DOWN) env->y++;
+    if (env->t > 3 * env->size || env->x < 0 || env->y < 0 || env->x >= env->size || env->y >= env->size) {
+        env->reward[0] = -1;
+        env->done[0] = 1;
+        c_reset(env);
+        return;
+    }
+    int position = env->x + env->y * env->size;
+    if (env->obs[position] == GOAL) {
+        env->reward[0] = 1;
+        env->done[0] = 1;
+        c_reset(env);
+        return;
+    }
+    env->obs[position] = AGENT;
+    env->t++;
+}
+'''
+
     ctypedef struct CGrid:
         char *obs
         unsigned char *act
@@ -19,7 +71,7 @@ cdef extern from 'grid.h':
 cdef class Grid:
     cdef:
         CGrid *envs
-        int n_agents, n_acts
+        int n_agents, _n_acts
         np.ndarray obs_arr, acts_arr, rewards_arr, dones_arr
         cdef char[:, :, :] obs_memview
         cdef unsigned char[:] acts_memview
@@ -30,7 +82,7 @@ cdef class Grid:
     def __init__(self, n_agents=1, n_acts=5, size=8):
         self.envs = <CGrid*> calloc(n_agents, sizeof(CGrid))
         self.n_agents = n_agents
-        self.n_acts = n_acts
+        self._n_acts = n_acts
         self.obs_arr = np.zeros((n_agents, size, size), dtype=np.int8)
         self.acts_arr = np.zeros(n_agents, dtype=np.uint8)
         self.rewards_arr = np.zeros(n_agents, dtype=np.float32)
@@ -78,4 +130,4 @@ cdef class Grid:
     def dones(self): return self.dones_arr
 
     @property
-    def n_acts(self): return self.n_acts
+    def n_acts(self): return self._n_acts
