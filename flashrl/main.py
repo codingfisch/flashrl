@@ -29,7 +29,7 @@ class Learner:
             self.rollout(steps)
             metrics = ppo(self.model, opt, **self._data, **hparams)
             pbar.set_description(f'{pbar_desc}: {self._data[pbar_desc + "s"].mean():.3f}')
-            if i: pbar.set_postfix_str(f'{1e-6 * len(self.env.obs) * steps * pbar.format_dict["rate"]:.1f}M steps/s')
+            if i: pbar.set_postfix_str(f'{1e-6 * self.env.acts.numel() * pbar.format_dict["rate"]:.1f}million steps/s')
             if log:
                 for k, v in metrics.items(): logger.add_scalar(k, v, global_step=i)
                 for name, param in self.model.named_parameters(): logger.add_histogram(name, param, global_step=i)
@@ -38,8 +38,8 @@ class Learner:
                 if metrics['kl'] > target_kl: break
         return {k: [m[k].item() for m in curves] for k in curves[0]}
 
-    def setup_data(self, duration):
-        values = torch.empty((len(self.env.obs), duration), dtype=self.dtype, device=self.device)
+    def setup_data(self, steps):
+        values = torch.empty((len(self.env.obs), steps), dtype=self.dtype, device=self.device)
         obs = torch.empty((*values.shape, *self.env.obs.shape[1:]), dtype=self.dtype, device=self.device)
         self._data = {'obs': obs, 'values': values, 'acts': values.clone().byte(), 'logprobs': values.clone()}
         self._np_data = {'rewards': values.float().cpu().numpy(), 'dones': values.float().cpu().numpy()}
