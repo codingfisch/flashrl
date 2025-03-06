@@ -29,7 +29,7 @@ class Learner:
             self.rollout(steps)
             metrics = ppo(self.model, opt, **self._data, **hparams)
             pbar.set_description(f'{pbar_desc}: {self._data[pbar_desc + "s"].mean():.3f}')
-            if i: pbar.set_postfix_str(f'{1e-6 * self.env.acts.numel() * pbar.format_dict["rate"]:.1f}million steps/s')
+            if i: pbar.set_postfix_str(f'{1e-6 * self._data["acts"].numel() * pbar.format_dict["rate"]:.1f}M steps/s')
             if log:
                 for k, v in metrics.items(): logger.add_scalar(k, v, global_step=i)
                 for name, param in self.model.named_parameters(): logger.add_histogram(name, param, global_step=i)
