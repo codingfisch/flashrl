@@ -67,7 +67,7 @@ def ppo(model, opt, obs, values, acts, logprobs, rewards, dones, bs=8192, gamma=
     advs = get_advantages(values, rewards, dones, gamma=gamma, gae_lambda=gae_lambda)
     obs, values, acts, logprobs, advs = [xs.view(-1, bs, *xs.shape[2:]) for xs in [obs, values, acts, logprobs, advs]]
     returns = advs + values
-    metrics, metric_keys = [], ['loss', 'policy_loss', 'value_loss', 'entropy_loss', 'kl', 'clip_frac']
+    metrics, metric_keys = [], ['loss', 'policy_loss', 'value_loss', 'entropy_loss', 'kl']
     for o, old_value, act, old_logp, adv, ret in zip(obs, values, acts, logprobs, advs, returns):
         _, logp, entropy, value, state = model(o, state=state, act=act)
         state = (state[0].detach(), state[1].detach())
@@ -86,8 +86,8 @@ def ppo(model, opt, obs, values, acts, logprobs, rewards, dones, bs=8192, gamma=
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
         opt.step()
-        kl, clip_frac = ((ratio - 1) - logratio).mean(), ((ratio - 1).abs() > clip_coef).float().mean()
-        metrics.append([loss, policy_loss, value_loss, entropy, kl, clip_frac])
+        kl = ((ratio - 1) - logratio).mean()
+        metrics.append([loss, policy_loss, value_loss, entropy, kl])
     return {k: torch.stack([values[i] for values in metrics]).mean() for i, k in enumerate(metric_keys)}
 
 
