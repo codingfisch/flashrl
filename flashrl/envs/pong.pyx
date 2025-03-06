@@ -16,7 +16,7 @@ const unsigned char NOOP = 0, UP = 1, DOWN = 2;
 typedef struct {
     char *obs0, *obs1;
     unsigned char *act0, *act1;
-    float *reward0, *reward1, *done0, *done1;
+    char *reward0, *reward1, *done0, *done1;
     int size_x, size_y, t, paddle0_x, paddle0_y, paddle1_x, paddle1_y, x, dx;
     float y, dy, max_dy;
 } CPong;
@@ -54,10 +54,12 @@ void c_step(CPong* env) {
     env->reward0[0] = env->reward1[0] = 0;
     env->done0[0] = env->done1[0] = 0;
     set_obs(env, 0, 0);
-    if (env->act0[0] == UP && env->paddle0_y > 0) env->paddle0_y--;
-    if (env->act0[0] == DOWN && env->paddle0_y < env->size_y - 2) env->paddle0_y++;
-    if (env->act1[0] == UP && env->paddle1_y > 0) env->paddle1_y--;
-    if (env->act1[0] == DOWN && env->paddle1_y < env->size_y - 2) env->paddle1_y++;
+    unsigned char act0 = env->act0[0];
+    unsigned char act1 = env->act1[0];
+    if (act0 == UP && env->paddle0_y > 0) env->paddle0_y--;
+    if (act0 == DOWN && env->paddle0_y < env->size_y - 2) env->paddle0_y++;
+    if (act1 == UP && env->paddle1_y > 0) env->paddle1_y--;
+    if (act1 == DOWN && env->paddle1_y < env->size_y - 2) env->paddle1_y++;
     env->dy = fminf(fmaxf(env->dy, -env->max_dy), env->max_dy);
     env->x += env->dx;
     env->y += env->dy;
@@ -72,9 +74,9 @@ void c_step(CPong* env) {
         env->dy += env->y - env->paddle1_y;
     }
     if (env->x == 0 || env->x == env->size_x - 1) {
-        env->reward1[0] = 2 * (float)(env->x == 0) - 1.f;
+        env->reward1[0] = 2 * (char)(env->x == 0) - 1;
         env->reward0[0] = -env->reward1[0];
-        env->done0[0] = env->done1[0] = 1.f;
+        env->done0[0] = env->done1[0] = 1;
         c_reset(env);
     }
     set_obs(env, PADDLE, BALL);
@@ -87,10 +89,10 @@ void c_step(CPong* env) {
         char *obs1
         unsigned char *act0
         unsigned char *act1
-        float *reward0
-        float *reward1
-        float *done0
-        float *done1
+        char *reward0
+        char *reward1
+        char *done0
+        char *done1
         int size_x, size_y, t, paddle0_x, paddle0_y, paddle1_x, paddle1_y, x, dx
         float y, dy, max_dy
 
@@ -104,8 +106,8 @@ cdef class Pong:
         np.ndarray obs_arr, acts_arr, rewards_arr, dones_arr
         cdef char[:, :, :] obs_memview
         cdef unsigned char[:] acts_memview
-        cdef float[:] rewards_memview
-        cdef float[:] dones_memview
+        cdef char[:] rewards_memview
+        cdef char[:] dones_memview
         int size_x, size_y
         float max_dy
 
@@ -115,8 +117,8 @@ cdef class Pong:
         self._n_acts = n_acts
         self.obs_arr = np.zeros((n_agents, size_y, size_x), dtype=np.int8)
         self.acts_arr = np.zeros(n_agents, dtype=np.uint8)
-        self.rewards_arr = np.zeros(n_agents, dtype=np.float32)
-        self.dones_arr = np.zeros(n_agents, dtype=np.float32)
+        self.rewards_arr = np.zeros(n_agents, dtype=np.int8)
+        self.dones_arr = np.zeros(n_agents, dtype=np.int8)
         self.obs_memview = self.obs_arr
         self.acts_memview = self.acts_arr
         self.rewards_memview = self.rewards_arr

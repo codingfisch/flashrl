@@ -15,7 +15,7 @@ const unsigned char NOOP = 0, LEFT = 1, RIGHT = 2, UP = 3, DOWN = 4;
 typedef struct {
     char *obs;
     unsigned char *act;
-    float *reward, *done;
+    char *reward, *done;
     int size, t, x, y, goal_x, goal_y;
 } CGrid;
 
@@ -60,8 +60,8 @@ void c_step(CGrid* env) {
     ctypedef struct CGrid:
         char *obs
         unsigned char *act
-        float *reward
-        float *done
+        char *reward
+        char *done
         int size, t, x, y, goal_x, goal_y
 
     void c_reset(CGrid *env)
@@ -75,8 +75,8 @@ cdef class Grid:
         np.ndarray obs_arr, acts_arr, rewards_arr, dones_arr
         cdef char[:, :, :] obs_memview
         cdef unsigned char[:] acts_memview
-        cdef float[:] rewards_memview
-        cdef float[:] dones_memview
+        cdef char[:] rewards_memview
+        cdef char[:] dones_memview
         int size
 
     def __init__(self, n_agents=1, n_acts=5, size=8):
@@ -85,8 +85,8 @@ cdef class Grid:
         self._n_acts = n_acts
         self.obs_arr = np.zeros((n_agents, size, size), dtype=np.int8)
         self.acts_arr = np.zeros(n_agents, dtype=np.uint8)
-        self.rewards_arr = np.zeros(n_agents, dtype=np.float32)
-        self.dones_arr = np.zeros(n_agents, dtype=np.float32)
+        self.rewards_arr = np.zeros(n_agents, dtype=np.int8)
+        self.dones_arr = np.zeros(n_agents, dtype=np.int8)
         self.obs_memview = self.obs_arr
         self.acts_memview = self.acts_arr
         self.rewards_memview = self.rewards_arr

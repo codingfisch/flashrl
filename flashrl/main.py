@@ -42,7 +42,7 @@ class Learner:
         values = torch.empty((len(self.env.obs), steps), dtype=self.dtype, device=self.device)
         obs = torch.empty((*values.shape, *self.env.obs.shape[1:]), dtype=self.dtype, device=self.device)
         self._data = {'obs': obs, 'values': values, 'acts': values.clone().byte(), 'logprobs': values.clone()}
-        self._np_data = {'rewards': values.float().cpu().numpy(), 'dones': values.float().cpu().numpy()}
+        self._np_data = {'rewards': values.char().cpu().numpy(), 'dones': values.char().cpu().numpy()}
 
     def rollout(self, duration, state=None):
         for i in range(duration):
