@@ -1,6 +1,5 @@
 import torch
 from tqdm import tqdm
-from time import time
 from torch.utils.tensorboard import SummaryWriter
 
 from .models import LSTMPolicy
@@ -29,8 +28,8 @@ class Learner:
             opt.param_groups[0]['lr'] = lr * (1 - i / iters) if anneal_lr else lr
             self.rollout(steps)
             metrics = ppo(self.model, opt, **self._data, **hparams)
-            pbar.set_postfix_str(f'{1e-6 * len(self.env.obs) * steps / (time() - pbar.last_print_t):.1f}M steps/s')
             pbar.set_description(f'{pbar_desc}: {self._data[pbar_desc + "s"].mean():.3f}')
+            if i: pbar.set_postfix_str(f'{1e-6 * len(self.env.obs) * steps * pbar.format_dict["rate"]:.1f}M steps/s')
             if log:
                 for k, v in metrics.items(): logger.add_scalar(k, v, global_step=i)
                 for name, param in self.model.named_parameters(): logger.add_histogram(name, param, global_step=i)
