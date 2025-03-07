@@ -54,8 +54,6 @@ Take a look at `train.py` to see how to use the `utils`-functions
 - `render_gif`: Shows the same, saved as a GIF
 - `print_table`: Shows a table of values, acts, logprobs, reward and dones of the last `rollout`
 </details>
-![multigrid](https://github.com/user-attachments/assets/7fd502f0-447f-4dd1-a8a1-e22044502c90)
-
 
 ## Environments 🕹️
 **Each env is one Cython(=`.pyx`) file** in `flashrl/envs`. **That's it!**
