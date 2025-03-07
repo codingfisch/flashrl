@@ -1,3 +1,3 @@
-from .main import Env
-from .grid.grid import Grid
-from .pong.pong import Pong
+from .grid import Grid
+from .pong import Pong
+from .multigrid import MultiGrid
