@@ -12,13 +12,13 @@ pip install torch Cython tensorboard plotille pillow tqdm
 3. See the magic unfold in the terminal 🪄
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/4ac3f6f0-972b-4ee8-bf93-ba4c905b3b92">
+  <img src="https://github.com/user-attachments/assets/6cc1277a-e6e6-4162-98fd-5b76505e9644">
 </p>
 
 ## Usage 💡
-`flashrl` will always be short -> Read the code (+paste into ChatGPT) to fully understand it!
+`flashrl` will always be **short** -> **Read the code** (+paste into ChatGPT) to fully understand it!
 
-Here is a minimal example to get you started:
+Here is a **minimal example** to get you started:
 
 `flashrl` uses a `Learner` that holds an `env` and a `model` (default: `LSTMPolicy`)
 ```python
@@ -54,6 +54,8 @@ Take a look at `train.py` to see how to use the `utils`-functions
 - `render_gif`: Shows the same, saved as a GIF
 - `print_table`: Shows a table of values, acts, logprobs, reward and dones of the last `rollout`
 </details>
+![multigrid](https://github.com/user-attachments/assets/7fd502f0-447f-4dd1-a8a1-e22044502c90)
+
 
 ## Environments 🕹️
 **Each env is one Cython(=`.pyx`) file** in `flashrl/envs`. **That's it!**
@@ -66,7 +68,7 @@ To **add custom envs**, use `grid.pyx`, `pong.pyx` or `multigrid.pyx` as a **tem
 | `Grid`                | `Pong`                  | `MultiGrid`                 |
 |-----------------------|-------------------------|-----------------------------|
 | Agent must reach goal | Good old pong (1 vs. 1) | Agent must reach goal first |
-| ![GIF 1](gif1_url)    | ![GIF 2](gif2_url)      | ![GIF 3](gif3_url)          |
+| ![grid](https://github.com/user-attachments/assets/e3f84b2f-e8f8-4fc5-a483-b5711489a7af) | ![pong](https://github.com/user-attachments/assets/ed462fe4-0edc-404c-af83-d634f23015fd) | ![multigrid](https://github.com/user-attachments/assets/7fd502f0-447f-4dd1-a8a1-e22044502c90) |
 
 ## Acknowledgements 🙌
 I want to thank
