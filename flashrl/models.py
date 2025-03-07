@@ -5,7 +5,7 @@ import torch
 class LSTMPolicy(torch.nn.Module):
     def __init__(self, env, n_hidden=128):
         super().__init__()
-        self.encoder = torch.nn.Linear(math.prod(env.obs_shape), n_hidden)
+        self.encoder = torch.nn.Linear(math.prod(env.obs.shape[1:]), n_hidden)
         self.decoder = torch.nn.Linear(n_hidden, env.n_acts)
         self.value_head = torch.nn.Linear(n_hidden, 1)
         self.lstm = torch.nn.LSTMCell(n_hidden, n_hidden)
