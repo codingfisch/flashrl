@@ -15,19 +15,18 @@ def set_seed(seed):
     torch.backends.cudnn.deterministic = True
 
 
-def print_ascii_curves(data_dict, keys=None, height=8, width=65):
-    keys = data_dict.keys() if keys is None else (keys,) if isinstance(keys, str) else keys
-    for k in keys:
-        fig = plotille.Figure()
-        fig._height, fig._width = height, width
-        fig.y_label = k
-        fig.scatter(list(range(len(data_dict[k]))), data_dict[k])
-        print('\n'.join(fig.show().split('\n')[:-2]))
+def print_ascii_curve(array, label=None, height=8, width=65):
+    fig = plotille.Figure()
+    fig._height, fig._width = height, width
+    fig.y_label = fig.y_label if label is None else label
+    fig.scatter(list(range(len(array))), array)
+    print('\n'.join(fig.show().split('\n')[:-2]))
 
 
-def render_ascii(learn, keys=None, fps=4, env_idx=0):
+def render_ascii(learn, keys=None, fps=4, env_idx=0, obs=None):
     keys = learn.scalar_data_keys if keys is None else [keys] if isinstance(keys, str) else keys
-    obs = (learn._data['obs'] - learn._data['obs'].min()) / (learn._data['obs'].max() - learn._data['obs'].min())
+    obs = learn._data['obs'] if obs is None else obs
+    obs = (obs - obs.min()) / (obs.max() - obs.min())
     obs = (23 * obs[env_idx]).byte().cpu().numpy() + 232
     for i, o in enumerate(obs):
         print(f'step {i}')
@@ -42,18 +41,19 @@ def render_ascii(learn, keys=None, fps=4, env_idx=0):
             print(f'\033[A\033[{len(o) + 1}A')
 
 
-def render_gif(filepath, learn, keys=None, upscale=64, fps=2, loop=0, env_idx=0):
+def render_gif(filepath, learn, keys=None, upscale=64, fps=2, loop=0, env_idx=0, obs=None):
     keys = learn.scalar_data_keys if keys is None else [keys] if isinstance(keys, str) else keys
-    obs = (learn._data['obs'] - learn._data['obs'].min()) / (learn._data['obs'].max() - learn._data['obs'].min())
+    obs = learn._data['obs'] if obs is None else obs
+    obs = (obs - obs.min()) / (obs.max() - obs.min())
     obs = (255 * obs[env_idx]).byte().cpu().numpy()
     font_size = obs.shape[-1] * upscale // 32
     frames = []
     for i, o in enumerate(obs):
         im = Image.fromarray(o).resize((upscale*o.shape[-1], upscale*o.shape[-2]), resample=0)
-        draw = ImageDraw.Draw(im)
-        draw.text((0, 0), f'step: {i}', fill=255, font_size=font_size)
-        text = [f'{k}: {learn._data[k][env_idx, i]:.2g}' for k in keys]
-        draw.text((0, im.size[1] - (len(text) + .5) * font_size), '\n'.join(text), fill=255, font_size=font_size)
+        # draw = ImageDraw.Draw(im)
+        # draw.text((0, 0), f'step: {i}', fill=255, font_size=font_size)
+        # text = [f'{k}: {learn._data[k][env_idx, i]:.2g}' for k in keys]
+        # draw.text((0, im.size[1] - (len(text) + .5) * font_size), '\n'.join(text), fill=255, font_size=font_size)
         frames.append(im)
     frames[0].save(filepath, append_images=frames[1:], save_all=True, duration=1000/fps, loop=loop)
 

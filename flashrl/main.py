@@ -10,15 +10,19 @@ class Learner:
     def __init__(self, env, model=None, device=None, dtype=None):
         self.env = env
         self.device = DEVICE if device is None else device
-        self.dtype = torch.bfloat16 if self.device == 'cuda' else torch.float32 if dtype is None else dtype
+        self.dtype = dtype if dtype is not None else torch.bfloat16 if self.device == 'cuda' else torch.float32
         self.model = LSTMPolicy(self.env).to(self.device, self.dtype) if model is None else model
         self._data, self._np_data = None, None
+
+    @property
+    def data_steps(self):
+        return 0 if self._data is None else self._data['obs'].shape[1]
 
     @property
     def scalar_data_keys(self):
         return [k for k, v in self._data.items() if v.ndim == 2]
 
-    def fit(self, iters=40, steps=16, lr=.01, anneal_lr=True, log=False, pbar_desc=None, target_kl=None, **hparams):
+    def fit(self, iters=40, steps=16, lr=.01, anneal_lr=True, log=False, pbar_desc='reward', target_kl=None, **hparams):
         self.setup_data(steps)
         curves = []
         logger = SummaryWriter() if log else None
@@ -44,8 +48,10 @@ class Learner:
         self._data = {'obs': obs, 'values': values, 'acts': values.clone().byte(), 'logprobs': values.clone()}
         self._np_data = {'rewards': values.char().cpu().numpy(), 'dones': values.char().cpu().numpy()}
 
-    def rollout(self, duration, state=None):
-        for i in range(duration):
+    def rollout(self, steps, state=None, extra_args_list=None, **kwargs):
+        if steps != self.data_steps: self.setup_data(steps)
+        extra_data = {} if extra_args_list is None else {k: [] for k in extra_args_list}
+        for i in range(steps):
             o = self.to_torch(self.env.obs)
             with torch.no_grad():
                 act, logp, _, value, state = self.model(o, state=state)
@@ -55,8 +61,10 @@ class Learner:
             self._data['logprobs'][:, i] = logp
             self._np_data['rewards'][:, i] = self.env.rewards
             self._np_data['dones'][:, i] = self.env.dones
-            self.env.step(act.cpu().numpy())
+            for k in extra_data: extra_data[k].append(self.to_torch(getattr(self.env, k).copy()))
+            self.env.step(act.cpu().numpy(), **kwargs)
         self._data.update({k: self.to_torch(v) for k, v in self._np_data.items()})
+        return {k: torch.stack(v, dim=1)  for k, v in extra_data.items()}
 
     def to_torch(self, x, non_blocking=True):
         return torch.from_numpy(x).to(device=self.device, dtype=self.dtype, non_blocking=non_blocking)
