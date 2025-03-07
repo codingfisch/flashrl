@@ -1,5 +1,5 @@
 # flashrl
-RL in seconds 💨 with ~200 lines of code (+ ~150 per env) 🤓
+RL in **seconds** 💨 with **~200 lines of code** (+ ~150 per env) 🤓
 
 🛠️ No pip package yet! Install via
 ```bash
