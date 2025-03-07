@@ -1,5 +1,5 @@
 # flashrl
-RL in seconds 💨 with ~200 lines of code (+ ~100 per env) 🤓
+RL in seconds 💨 with ~200 lines of code (+ ~150 per env) 🤓
 
 🛠️ No pip package yet! Install via
 ```bash
@@ -16,48 +16,57 @@ pip install torch Cython tensorboard plotille pillow tqdm
 </p>
 
 ## Usage 💡
-`flashrl` uses a `Learner` that holds an `env` and a `model`
+`flashrl` will always be short -> Read the code (+paste into ChatGPT) to fully understand it!
+
+Here is a minimal example to get you started:
+
+`flashrl` uses a `Learner` that holds an `env` and a `model` (default: `LSTMPolicy`)
 ```python
-from flashrl import HPARAMS, Learner, LSTMPolicy
-from flashrl.envs import Grid
+import flashrl as frl
 
-BS = 8*1024  # (mini-)batch size
-env = Grid(n_envs=2*BS, size=8, device='cuda').reset()
-learn = Learner(env=env,
-                model=LSTMPolicy(env).to(device=env.device, dtype=env.dtype))
-learn(40, duration=16, bs=BS, hparams=HPARAMS.copy(), print_metrics=('loss',))
+learn = frl.Learner(env=frl.envs.Pong(n_agents=2**14))
+curves = learn.fit(40, steps=16, pbar_desc='done')
+frl.print_ascii_curve(curves['loss'], label='loss')
+frl.render_ascii(learn, fps=10)
+learn.env.close()
 ```
-The last line triggers RL
-- with 40 iterations...
-- ...with 16 steps run per iteration...
-- ...with `Grid` containing 16384(=`2*BS`) envs (in C)
+`.fit` triggers RL with
+- **40** iterations...
+- ...**16** steps per iteration...
+- ...in `Pong` holding `2**14`=**16384** agents
 
-resulting in ~10 million(=40 * 16 * 16384) steps run!
+resulting in training with (40 * 16 * 16384=)~**10 million steps**!
 
 <details>
-  <summary><b>Click here</b>, to see some more usage explanations 📑</summary>
-The call to Learner takes the arguments
+  <summary><b>Click here</b>, to read a tiny doc 📑</summary>
 
-- `iterations`: Number of iterations
-- `duration`: Number of steps in `evaluate`
-- `bs`: Batch size (also called minibatch size in RL)
-- `hparams`: Dictionary of hyperparameters
+`.fit` takes the arguments
+- `iters`: Number of iterations
+- `steps`: Number of steps in `rollout`
+- `pbar_desc`: Progress bar description (default: `'reward'`)
 - `log`: If `True`, `tensorboard` logging is enabled 
-  - run `tensorboard --logdir=runs`...
-  - ...and visit `http://localhost:6006` in the browser!
-- `print_metrics`: Tuple containing metrics that will be printed(=ASCII plot)
-  - Possible metrics: `'loss'`, `'policy_loss'`, `'value_loss'`, `'entropy_loss'`, `'kl'`, `'clip_frac'`
-- `target_kl`: Target KL (Kullback-Leibler) divergence
+  - run `tensorboard --logdir=runs`and visit `http://localhost:6006` in the browser!
+- `lr`, `anneal_lr`, `target_fl` + all args of `ppo`: Hyperparameters
 
-Take a look at `train.py` to understand how to use
-- `render_ascii` to show a rollout in the terminal
-- `render_gif` to save a GIF of the rollout
-- `print_table` to print a table of the rollout
+Take a look at `train.py` to see how to use the `utils`-functions
+- `print_ascii_curve`: Visualizes the loss across the `iters`
+- `render_ascii`: Shows data of the last `rollout` in the terminal
+- `render_gif`: Shows the same, saved as a GIF
+- `print_table`: Shows a table of values, acts, logprobs, reward and dones of the last `rollout`
 </details>
 
-Wanna bring your **own env**? **Rewrite it in C** with `flashrl/envs/grid` as a **template**!
+## Environments 🕹️
+**Each env is one Cython(=`.pyx`) file** in `flashrl/envs`. **That's it!**
 
-`flashrl` will always be short. Just read the code (+paste into ChatGPT) to understand!
+To **add custom envs**, use `grid.pyx`, `pong.pyx` or `multigrid.pyx` as a **template**:
+- `grid.pyx` for **single-agent** envs
+- `pong.pyx` for **1 vs. 1 agent** envs (AlphaZero-style)
+- `multigrid.pyx` for **multi-agent** envs
+
+| `Grid`                | `Pong`                  | `MultiGrid`                 |
+|-----------------------|-------------------------|-----------------------------|
+| Agent must reach goal | Good old pong (1 vs. 1) | Agent must reach goal first |
+| ![GIF 1](gif1_url)    | ![GIF 2](gif2_url)      | ![GIF 3](gif3_url)          |
 
 ## Acknowledgements 🙌
 I want to thank
