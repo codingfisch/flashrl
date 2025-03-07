@@ -16,7 +16,7 @@ pip install torch Cython tensorboard plotille pillow tqdm
 </p>
 
 ## Usage 💡
-`flashrl` will always be **short** -> **Read the code** (+paste into ChatGPT) to fully understand it!
+`flashrl` will always be **short** → **Read the code** (+paste into ChatGPT) to fully understand it!
 
 Here is a **minimal example** to get you started:
 
