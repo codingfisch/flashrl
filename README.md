@@ -1,24 +1,20 @@
 # flashrl
 RL in **seconds** 💨 with **~200 lines of code** (+ ~150 per env) 🤓
 
-🛠️ No pip package yet! Install via
-```bash
-git clone https://github.com/codingfisch/flashrl
-pip install torch Cython tensorboard plotille pillow tqdm
-```
+🛠️ `pip install flashrl` or if you want to modify envs clone the repo and `pip install -r requirements.txt`
 ## Quick Start 🚀
-1. Compile envs via `python setup.py build_ext --inplace`
-2. Train via `python train.py`
-3. See the magic unfold in the terminal 🪄
+0. If installed via clone, compile envs: `python setup.py build_ext --inplace`
+1. Train: `python train.py`
+2. See the magic unfold in the terminal 🪄
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/6cc1277a-e6e6-4162-98fd-5b76505e9644">
 </p>
 
 ## Usage 💡
-`flashrl` will always be **short** → **Read the code** (+paste into ChatGPT) to fully understand it!
+`flashrl` will always be **short**: **Read the code** (+paste into ChatGPT) to understand it!
 
-Here is a **minimal example** to get you started:
+Here's a **minimal example** to get you going:
 
 `flashrl` uses a `Learner` that holds an `env` and a `model` (default: `LSTMPolicy`)
 ```python
@@ -70,8 +66,8 @@ To **add custom envs**, use `grid.pyx`, `pong.pyx` or `multigrid.pyx` as a **tem
 
 ## Acknowledgements 🙌
 I want to thank
-- [Joseph Suarez](https://github.com/jsuarez5341) for open source RL envs in C(ython)! Star [PufferLib](https://github.com/PufferAI/PufferLib) ⭐
-- [Costa Huang](https://github.com/vwxyzjn) for open source high-quality single-file RL code! Star [cleanrl](https://github.com/vwxyzjn/cleanrl) ⭐
+- [Joseph Suarez](https://github.com/jsuarez5341) for open sourcing RL envs in C(ython)! Star [PufferLib](https://github.com/PufferAI/PufferLib) ⭐
+- [Costa Huang](https://github.com/vwxyzjn) for open sourcing high-quality single-file RL code! Star [cleanrl](https://github.com/vwxyzjn/cleanrl) ⭐
 
 and last but not least...
 
