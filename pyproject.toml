@@ -4,7 +4,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'flashrl'
-version = '0.0.2'
+version = '0.1.0'
 description = 'Fast reinforcement learning 💨'
 authors = [{name = 'codingfisch', email = 'l_fisc17@wwu.de'}]
 readme = 'README.md'
@@ -15,4 +15,4 @@ packages = ['flashrl']
 include-package-data = true
 
 [tool.setuptools.package-data]
-mypackage = ['*.pyx', '*.c']
+flashrl = ['envs/*.pyx', 'envs/*.c']
