@@ -1,7 +1,7 @@
 # flashrl
 RL in **seconds** 💨 with **~200 lines of code** (+ ~150 per env) 🤓
 
-🛠️ `pip install flashrl` or if you want to modify envs clone the repo and `pip install -r requirements.txt`
+🛠️ `pip install flashrl`, or if you want to modify envs, clone the repo and `pip install -r requirements.txt`
 ## Quick Start 🚀
 0. If installed via clone, compile envs: `python setup.py build_ext --inplace`
 1. Train: `python train.py`
