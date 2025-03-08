@@ -1,0 +1,6 @@
+torch
+Cython
+tqdm
+plotille
+tensorboard
+pillow
