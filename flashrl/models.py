@@ -8,7 +8,7 @@ class Policy(torch.nn.Module):
         self.encoder = torch.nn.Linear(math.prod(env.obs.shape[1:]), hidden_size)
         self.actor = torch.nn.Linear(hidden_size, env.n_acts)
         self.value_head = torch.nn.Linear(hidden_size, 1)
-        self.lstm = cleanrl_init(torch.nn.LSTMCell(hidden_size, hidden_size)) if lstm else None
+        self.lstm = cleanrl_init(FastLSTMCell(hidden_size, hidden_size)) if lstm else None
 
     def forward(self, x, state, act=None, with_entropy=None):
         with_entropy = act is not None if with_entropy is None else with_entropy
@@ -21,6 +21,14 @@ class Policy(torch.nn.Module):
         logprob = x.gather(-1, act[..., None].long())[..., 0]
         entropy = -(x * x.softmax(dim=-1)).sum(-1) if with_entropy else None
         return act.byte(), logprob, entropy, value, (h, c)
+
+ # tiny bit faster maybe
+class FastLSTMCell(torch.nn.RNNCellBase):  # =nn.LSTMCell without creating torch.zeros if state=None
+    def __init__(self, input_size: int, hidden_size: int, bias: bool = True, device=None, dtype=None):
+        super().__init__(input_size, hidden_size, bias, num_chunks=4, device=device, dtype=dtype)
+
+    def forward(self, x, state=None):
+        return torch._VF.lstm_cell(x, state, self.weight_ih, self.weight_hh, self.bias_ih, self.bias_hh)
 
 
 def cleanrl_init(module):
