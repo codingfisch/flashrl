@@ -2,17 +2,19 @@ import torch
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
-from .models import LSTMPolicy
+from .models import Policy
 DEVICE = 'mps' if torch.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 class Learner:
-    def __init__(self, env, model=None, device=None, dtype=None):
+    def __init__(self, env, model=None, device=None, dtype=None, compile_no_lstm=False, **kwargs):
         self.env = env
         self.device = DEVICE if device is None else device
         self.dtype = dtype if dtype is not None else torch.bfloat16 if self.device == 'cuda' else torch.float32
-        self.model = LSTMPolicy(self.env).to(self.device, self.dtype) if model is None else model
-        self._data, self._np_data = None, None
+        self.model = Policy(self.env, **kwargs).to(self.device, self.dtype) if model is None else model
+        if self.model.lstm is None and compile_no_lstm:
+            self.model = torch.compile(self.model, fullgraph=True, mode='reduce-overhead')
+        self._data, self._np_data, self._rollout_state, self._ppo_state = None, None, None, None
 
     @property
     def data_steps(self):
@@ -22,8 +24,9 @@ class Learner:
     def scalar_data_keys(self):
         return [k for k, v in self._data.items() if v.ndim == 2]
 
-    def fit(self, iters=40, steps=16, lr=.01, anneal_lr=True, log=False, pbar_desc='reward', target_kl=None, **hparams):
-        self.setup_data(steps)
+    def fit(self, iters=40, steps=16, lr=.01, bs=2**13, anneal_lr=True, log=False, pbar_desc='reward', target_kl=None,
+            **hparams):
+        self.setup_data(steps, bs)
         curves = []
         logger = SummaryWriter() if log else None
         opt = torch.optim.Adam(self.model.parameters(), lr=lr, eps=1e-5)
@@ -31,7 +34,7 @@ class Learner:
         for i in pbar:
             opt.param_groups[0]['lr'] = lr * (1 - i / iters) if anneal_lr else lr
             self.rollout(steps)
-            metrics = ppo(self.model, opt, **self._data, **hparams)
+            metrics = ppo(self.model, opt, bs=bs, state=self._ppo_state, **self._data, **hparams)
             pbar.set_description(f'{pbar_desc}: {self._data[pbar_desc + "s"].mean():.3f}')
             if i: pbar.set_postfix_str(f'{1e-6 * self._data["acts"].numel() * pbar.format_dict["rate"]:.1f}M steps/s')
             if log:
@@ -42,13 +45,20 @@ class Learner:
                 if metrics['kl'] > target_kl: break
         return {k: [m[k].item() for m in curves] for k in curves[0]}
 
-    def setup_data(self, steps):
+    def setup_data(self, steps, bs=None):
         values = torch.empty((len(self.env.obs), steps), dtype=self.dtype, device=self.device)
         obs = torch.empty((*values.shape, *self.env.obs.shape[1:]), dtype=self.dtype, device=self.device)
         self._data = {'obs': obs, 'values': values, 'acts': values.clone().byte(), 'logprobs': values.clone()}
         self._np_data = {'rewards': values.char().cpu().numpy(), 'dones': values.char().cpu().numpy()}
+        if self.model.lstm is not None:
+            zeros = torch.zeros((len(obs), self.model.encoder.out_features), dtype=self.dtype, device=self.device)
+            self._rollout_state = (zeros, zeros.clone())
+            if bs is not None:
+                zeros = torch.zeros((bs, self.model.encoder.out_features), dtype=self.dtype, device=self.device)
+                self._ppo_state = (zeros, zeros.clone())
 
     def rollout(self, steps, state=None, extra_args_list=None, **kwargs):
+        state = self._rollout_state if state is None else state
         if steps != self.data_steps: self.setup_data(steps)
         extra_data = {} if extra_args_list is None else {k: [] for k in extra_args_list}
         for i in range(steps):
@@ -70,7 +80,7 @@ class Learner:
         return torch.from_numpy(x).to(device=self.device, dtype=self.dtype, non_blocking=non_blocking)
 
 
-def ppo(model, opt, obs, values, acts, logprobs, rewards, dones, bs=8192, gamma=.99, gae_lambda=.95, clip_coef=.1,
+def ppo(model, opt, obs, values, acts, logprobs, rewards, dones, bs=2**13, gamma=.99, gae_lambda=.95, clip_coef=.1,
         value_coef=.5, value_clip_coef=.1, entropy_coef=.01, max_grad_norm=.5, norm_adv=True, state=None):
     advs = get_advantages(values, rewards, dones, gamma=gamma, gae_lambda=gae_lambda)
     obs, values, acts, logprobs, advs = [xs.view(-1, bs, *xs.shape[2:]) for xs in [obs, values, acts, logprobs, advs]]
@@ -78,7 +88,7 @@ def ppo(model, opt, obs, values, acts, logprobs, rewards, dones, bs=8192, gamma=
     metrics, metric_keys = [], ['loss', 'policy_loss', 'value_loss', 'entropy_loss', 'kl']
     for o, old_value, act, old_logp, adv, ret in zip(obs, values, acts, logprobs, advs, returns):
         _, logp, entropy, value, state = model(o, state=state, act=act)
-        state = (state[0].detach(), state[1].detach())
+        state = state if model.lstm is None else (state[0].detach(), state[1].detach())
         logratio = logp - old_logp
         ratio = logratio.exp()
         adv = (adv - adv.mean()) / (adv.std() + 1e-8) if norm_adv else adv

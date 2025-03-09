@@ -1,6 +1,6 @@
 import torch
 from flashrl.utils import print_ascii_curve, render_ascii, render_gif, print_table
-from flashrl.models import LSTMPolicy
+from flashrl.models import Policy
 from flashrl.main import get_advantages, Learner
 from flashrl.envs.grid import Grid
 
@@ -11,15 +11,15 @@ def test_print_ascii_curve():
 
 def test_LSTMPolicy_init():
     env = Grid(n_agents=1, size=5)
-    model = LSTMPolicy(env)
-    assert isinstance(model, LSTMPolicy), 'Model initialization failed'
+    model = Policy(env)
+    assert isinstance(model, Policy), 'Model initialization failed'
     assert model.actor.in_features == 128, 'Actor layer initialization failed'
     assert model.lstm.hidden_size == 128, 'LSTM layer hidden size is incorrect'
 
 def test_learner_init():
     env = Grid(n_agents=1, size=5)
     learner = Learner(env)
-    assert isinstance(learner.model, LSTMPolicy), 'Model initialization failed'
+    assert isinstance(learner.model, Policy), 'Model initialization failed'
 
 def test_learner_fit():
     env = Grid(n_agents=2**13, size=5)
