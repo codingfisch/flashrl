@@ -111,7 +111,7 @@ cdef class Pong:
         int size_x, size_y
         float max_dy
 
-    def __init__(self, n_agents=1024, n_acts=3, size_x=16, size_y=8, max_dy=1.):
+    def __init__(self, n_agents=2**14, n_acts=3, size_x=16, size_y=8, max_dy=1.):
         self.envs = <CPong*>calloc(n_agents // 2, sizeof(CPong))
         self.n_agents = n_agents
         self._n_acts = n_acts

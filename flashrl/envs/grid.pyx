@@ -35,10 +35,10 @@ void c_step(CGrid* env) {
     env->done[0] = 0;
     env->obs[env->x + env->y * env->size] = 0;
     unsigned char act = env->act[0];
-    if (act == LEFT) env->x--;
+    if (act == LEFT)       env->x--;
     else if (act == RIGHT) env->x++;
-    else if (act == UP) env->y--;
-    else if (act == DOWN) env->y++;
+    else if (act == UP)    env->y--;
+    else if (act == DOWN)  env->y++;
     if (env->t > 3 * env->size || env->x < 0 || env->y < 0 || env->x >= env->size || env->y >= env->size) {
         env->reward[0] = -1;
         env->done[0] = 1;
@@ -79,7 +79,7 @@ cdef class Grid:
         cdef char[:] dones_memview
         int size
 
-    def __init__(self, n_agents=1024, n_acts=5, size=8):
+    def __init__(self, n_agents=2**14, n_acts=5, size=8):
         self.envs = <CGrid*> calloc(n_agents, sizeof(CGrid))
         self.n_agents = n_agents
         self._n_acts = n_acts
