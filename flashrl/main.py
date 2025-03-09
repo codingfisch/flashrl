@@ -12,7 +12,7 @@ class Learner:
         self.device = DEVICE if device is None else device
         self.dtype = dtype if dtype is not None else torch.bfloat16 if self.device == 'cuda' else torch.float32
         self.model = Policy(self.env, **kwargs).to(self.device, self.dtype) if model is None else model
-        if self.model.lstm is None and compile_no_lstm:
+        if self.model.lstm is None and compile_no_lstm:  # only no-lstm policy gets faster from torch.compile
             self.model = torch.compile(self.model, fullgraph=True, mode='reduce-overhead')
         self._data, self._np_data, self._rollout_state, self._ppo_state = None, None, None, None
 
