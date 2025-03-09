@@ -1,5 +1,5 @@
 # flashrl
-RL in **seconds** 💨 with **~200 lines of code** (+ ~150 per env) 🤓
+Tiny library—**200 lines of core code** + ~150 per env—unlocking RL with **millions of steps per second** 💨
 
 🛠️ `pip install flashrl`, or if you want to modify envs, clone the repo and `pip install -r requirements.txt`
 ## Quick Start 🚀
@@ -16,7 +16,7 @@ RL in **seconds** 💨 with **~200 lines of code** (+ ~150 per env) 🤓
 
 Here's a **minimal example** to get you going:
 
-`flashrl` uses a `Learner` that holds an `env` and a `model` (default: `LSTMPolicy`)
+`flashrl` uses a `Learner` that holds an `env` and a `model` (default: `Policy` with LSTM)
 ```python
 import flashrl as frl
 
