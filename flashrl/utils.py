@@ -15,7 +15,7 @@ def set_seed(seed):
     torch.backends.cudnn.deterministic = True
 
 
-def print_ascii_curve(array, label=None, height=8, width=65):
+def print_curve(array, label=None, height=8, width=65):
     fig = plotille.Figure()
     fig._height, fig._width = height, width
     fig.y_label = fig.y_label if label is None else label
@@ -23,16 +23,18 @@ def print_ascii_curve(array, label=None, height=8, width=65):
     print('\n'.join(fig.show().split('\n')[:-2]))
 
 
-def render_ascii(learn, keys=None, fps=4, env_idx=0, obs=None):
+def print_render(learn, keys=None, fps=4, env_idx=0, obs=None, emoji_map=None):
+    emoji_map = learn.env.emoji_map if emoji_map is None else emoji_map
     keys = learn.scalar_data_keys if keys is None else [keys] if isinstance(keys, str) else keys
-    obs = learn._data['obs'] if obs is None else obs
-    obs = (obs - obs.min()) / (obs.max() - obs.min())
-    obs = (23 * obs[env_idx]).byte().cpu().numpy() + 232
+    obs = (learn._data['obs'] if obs is None else obs)[env_idx]
+    obs = 23 * (obs - obs.min()) / (obs.max() - obs.min()) + 232 if emoji_map is None else obs
+    obs = obs.byte().cpu().numpy()
     for i, o in enumerate(obs):
         print(f'step {i}')
         for row in range(o.shape[0]):
             for col in range(o.shape[1]):
-                print(f"\033[48;5;{o[row, col]}m  \033[0m", end='')
+                substr = f'{232 + o[row, col]}m' if emoji_map is None else f'232m{emoji_map[o[row, col]]}'
+                print(f"\033[48;5;{substr}\033[0m", end='')
             if row < len(keys):
                 print(f'{keys[row]}: {learn._data[keys[row]][env_idx, i]:.2g}', end='')
             print()
@@ -41,7 +43,7 @@ def render_ascii(learn, keys=None, fps=4, env_idx=0, obs=None):
             print(f'\033[A\033[{len(o) + 1}A')
 
 
-def render_gif(filepath, learn, keys=None, upscale=64, fps=2, loop=0, env_idx=0, obs=None):
+def gif_render(filepath, learn, keys=None, upscale=64, fps=2, loop=0, env_idx=0, obs=None):
     keys = learn.scalar_data_keys if keys is None else [keys] if isinstance(keys, str) else keys
     obs = learn._data['obs'] if obs is None else obs
     obs = (obs - obs.min()) / (obs.max() - obs.min())

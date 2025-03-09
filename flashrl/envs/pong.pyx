@@ -110,8 +110,9 @@ cdef class Pong:
         cdef char[:] dones_memview
         int size_x, size_y
         float max_dy
+        dict _emoji_map
 
-    def __init__(self, n_agents=2**14, n_acts=3, size_x=16, size_y=8, max_dy=1.):
+    def __init__(self, n_agents=2**14, n_acts=3, size_x=16, size_y=8, max_dy=1., emoji_map={0: '  ', 1: '🔲', 2: '🔴'}):
         self.envs = <CPong*>calloc(n_agents // 2, sizeof(CPong))
         self.n_agents = n_agents
         self._n_acts = n_acts
@@ -133,6 +134,7 @@ cdef class Pong:
             env.size_x = size_x
             env.size_y = size_y
             env.max_dy = max_dy
+        self._emoji_map = emoji_map
 
     def reset(self, seed=None):
         if seed is not None:
@@ -165,3 +167,6 @@ cdef class Pong:
 
     @property
     def n_acts(self): return self._n_acts
+
+    @property
+    def emoji_map(self): return self._emoji_map

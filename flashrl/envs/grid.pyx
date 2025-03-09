@@ -78,8 +78,9 @@ cdef class Grid:
         cdef char[:] rewards_memview
         cdef char[:] dones_memview
         int size
+        dict _emoji_map
 
-    def __init__(self, n_agents=2**14, n_acts=5, size=8):
+    def __init__(self, n_agents=2**14, n_acts=5, size=8, emoji_map={0: '  ', 1: '🦠', 2: '🍪'}):
         self.envs = <CGrid*> calloc(n_agents, sizeof(CGrid))
         self.n_agents = n_agents
         self._n_acts = n_acts
@@ -99,6 +100,7 @@ cdef class Grid:
             env.reward = &self.rewards_memview[i]
             env.done = &self.dones_memview[i]
             env.size = size
+        self._emoji_map = emoji_map
 
     def reset(self, seed=None):
         if seed is not None:
@@ -131,3 +133,6 @@ cdef class Grid:
 
     @property
     def n_acts(self): return self._n_acts
+
+    @property
+    def emoji_map(self): return self._emoji_map

@@ -1,10 +1,10 @@
 # flashrl
-Tiny library—**200 lines of core code** + ~150 per env—unlocking RL with **millions of steps per second** 💨
+Tiny lib—**200 lines of code**(+150 per env)—running RL with **millions of steps/second** 💨
 
 🛠️ `pip install flashrl`, or if you want to modify envs, clone the repo and `pip install -r requirements.txt`
 ## Quick Start 🚀
-0. If installed via clone, compile envs: `python setup.py build_ext --inplace`
-1. Train: `python train.py`
+0. If cloned, compile envs: `python setup.py build_ext --inplace`
+1. Start training: `python train.py`
 2. See the magic unfold in the terminal 🪄
 
 <p align="center">
@@ -17,13 +17,14 @@ Tiny library—**200 lines of core code** + ~150 per env—unlocking RL with **m
 Here's a **minimal example** to get you going:
 
 `flashrl` uses a `Learner` that holds an `env` and a `model` (default: `Policy` with LSTM)
+
 ```python
 import flashrl as frl
 
 learn = frl.Learner(env=frl.envs.Pong(n_agents=2**14))
 curves = learn.fit(40, steps=16, pbar_desc='done')
-frl.print_ascii_curve(curves['loss'], label='loss')
-frl.render_ascii(learn, fps=10)
+frl.print_curve(curves['loss'], label='loss')
+frl.print_render(learn, fps=10)
 learn.env.close()
 ```
 `.fit` triggers RL with
@@ -45,9 +46,9 @@ resulting in training with (40 * 16 * 16384=)~**10 million steps**!
 - `lr`, `anneal_lr`, `target_fl` + all args of `ppo`: Hyperparameters
 
 Take a look at `train.py` to see how to use the `utils`-functions
-- `print_ascii_curve`: Visualizes the loss across the `iters`
-- `render_ascii`: Shows data of the last `rollout` in the terminal
-- `render_gif`: Shows the same, saved as a GIF
+- `print_curve`: Visualizes the loss across the `iters`
+- `print_render`: Shows data of the last `rollout` in the terminal
+- `gif_render`: Shows the same, saved as a GIF
 - `print_table`: Shows a table of values, acts, logprobs, reward and dones of the last `rollout`
 </details>
 
@@ -56,12 +57,12 @@ Take a look at `train.py` to see how to use the `utils`-functions
 
 To **add custom envs**, use `grid.pyx`, `pong.pyx` or `multigrid.pyx` as a **template**:
 - `grid.pyx` for **single-agent** envs
-- `pong.pyx` for **1 vs. 1 agent** envs (AlphaZero-style)
+- `pong.pyx` for **1 vs 1 agent** envs (AlphaZero-style)
 - `multigrid.pyx` for **multi-agent** envs
 
-| `Grid`                | `Pong`                                                                                   | `MultiGrid`                                                                                   |
-|-----------------------|------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
-| Agent must reach goal ![grid](https://github.com/user-attachments/assets/e3f84b2f-e8f8-4fc5-a483-b5711489a7af)| Good old pong (1 vs. 1) ![pong](https://github.com/user-attachments/assets/ed462fe4-0edc-404c-af83-d634f23015fd)                                                                 | Agent must reach goal first ![multigrid](https://github.com/user-attachments/assets/7fd502f0-447f-4dd1-a8a1-e22044502c90)                                                                  |
+| `Grid`                | `Pong`                                                                                                    | `MultiGrid`                                                                                   |
+|-----------------------|-----------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
+| Agent must reach goal ![grid](https://github.com/user-attachments/assets/e3f84b2f-e8f8-4fc5-a483-b5711489a7af)| Agent must score ![pong](https://github.com/user-attachments/assets/ed462fe4-0edc-404c-af83-d634f23015fd) | Agent must reach goal first ![multigrid](https://github.com/user-attachments/assets/7fd502f0-447f-4dd1-a8a1-e22044502c90)                                                                  |
 
 ## Acknowledgements 🙌
 I want to thank

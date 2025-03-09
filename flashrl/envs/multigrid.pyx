@@ -78,10 +78,10 @@ void agent_step(CMultiGrid* env, int i, bool with_total_obs) {
     env->rewards[i] = 0;
     env->dones[i] = 0;
     unsigned char act = env->acts[i];
-    if (act == LEFT)       env[i]->x--;
-    else if (act == RIGHT) env[i]->x++;
-    else if (act == UP)    env[i]->y--;
-    else if (act == DOWN)  env[i]->y++;
+    if (act == LEFT)       env->x[i]--;
+    else if (act == RIGHT) env->x[i]++;
+    else if (act == UP)    env->y[i]--;
+    else if (act == DOWN)  env->y[i]++;
     if (env->t > 3 * env->size || env->x[i] < 0 || env->y[i] < 0 || env->x[i] >= env->size || env->y[i] >= env->size) {
         env->dones[i] = 1;
         env->rewards[i] = -1;
@@ -135,8 +135,10 @@ cdef class MultiGrid:
         cdef char[:, :, :] total_obs_memview
         int size
         bint with_total_obs
+        dict _emoji_map
 
-    def __init__(self, n_agents=2**14, n_acts=5, n_agents_per_env=2, vision=3, size=8):
+    def __init__(self, n_agents=2**14, n_acts=5, n_agents_per_env=2, vision=3, size=8,
+                 emoji_map={0: '  ', 1: '🧱', 2: '🦠', 3: '🍪'}):
         self.envs = <CMultiGrid*>calloc(n_agents // n_agents_per_env, sizeof(CMultiGrid))
         self.n_agents = n_agents
         self._n_acts = n_acts
@@ -169,6 +171,7 @@ cdef class MultiGrid:
             env.n_agents_per_env = n_agents_per_env
             env.vision = vision
             env.size = size
+        self._emoji_map = emoji_map
 
     def reset(self, seed=None, with_total_obs=False):
         if seed is not None:
@@ -209,3 +212,6 @@ cdef class MultiGrid:
 
     @property
     def total_obs(self): return self.total_obs_arr
+
+    @property
+    def emoji_map(self): return self._emoji_map

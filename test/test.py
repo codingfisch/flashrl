@@ -1,5 +1,5 @@
 import torch
-from flashrl.utils import print_ascii_curve, render_ascii, render_gif, print_table
+from flashrl.utils import print_curve, print_render, gif_render, print_table
 from flashrl.models import Policy
 from flashrl.main import get_advantages, Learner
 from flashrl.envs.grid import Grid
@@ -7,7 +7,7 @@ from flashrl.envs.grid import Grid
 
 def test_print_ascii_curve():
     array = [1, 2, 3, 4, 5]
-    print_ascii_curve(array)
+    print_curve(array)
 
 def test_LSTMPolicy_init():
     env = Grid(n_agents=1, size=5)
@@ -37,13 +37,13 @@ def test_render_ascii():
     env = Grid(n_agents=2**13, size=5)
     learner = Learner(env)
     learner.fit(iters=1, steps=10)
-    render_ascii(learner)
+    print_render(learner)
 
 def test_render_gif():
     env = Grid(n_agents=2**13, size=5)
     learner = Learner(env)
     learner.fit(iters=1, steps=10)
-    render_gif('test.gif', learner)
+    gif_render('test.gif', learner)
 
 def test_get_advantages():
     values = torch.rand(1, 10)
