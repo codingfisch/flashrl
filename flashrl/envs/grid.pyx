@@ -4,6 +4,10 @@ cimport numpy as np
 
 from libc.stdlib cimport free, srand, calloc
 
+cdef extern from "sys/mman.h":
+    int mlock(const void *addr, size_t len)
+    int munlock(const void *addr, size_t len)
+
 cdef extern from *:
     '''
 #include <stdlib.h>
@@ -91,6 +95,7 @@ cdef class Grid:
         self.acts_memview = self.acts_arr
         self.rewards_memview = self.rewards_arr
         self.dones_memview = self.dones_arr
+        self.lock_memory()
         cdef int i
         for i in range(n_agents):
             env = &self.envs[i]
@@ -99,6 +104,16 @@ cdef class Grid:
             env.reward = &self.rewards_memview[i]
             env.done = &self.dones_memview[i]
             env.size = size
+
+    cdef void lock_memory(self):
+        if mlock(<void*> self.obs_arr.ctypes.data, self.obs_arr.nbytes) != 0:
+            raise MemoryError("Failed to lock obs_arr in memory")
+        if mlock(<void*> self.acts_arr.ctypes.data, self.acts_arr.nbytes) != 0:
+            raise MemoryError("Failed to lock acts_arr in memory")
+        if mlock(<void*> self.rewards_arr.ctypes.data, self.rewards_arr.nbytes) != 0:
+            raise MemoryError("Failed to lock rewards_arr in memory")
+        if mlock(<void*> self.dones_arr.ctypes.data, self.dones_arr.nbytes) != 0:
+            raise MemoryError("Failed to lock dones_arr in memory")
 
     def reset(self, seed=None):
         if seed is not None:
