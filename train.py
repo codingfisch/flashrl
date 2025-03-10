@@ -1,9 +1,9 @@
 import flashrl as frl
 frl.set_seed(SEED:=1)
 
-env = frl.envs.Pong(n_agents=2**14)  # replace Pong with Grid to try it (for MultiGrid use commented code block below)
+env = frl.envs.Breakout(n_agents=2**14)  # replace Pong with Grid to try it (for MultiGrid use commented code block below)
 learn = frl.Learner(env=env.reset(SEED), hidden_size=128, lstm=True)  # even faster with smaller hidden_size/lstm=False
-curves = learn.fit(40, steps=16, pbar_desc='done')  # ,lr=1e-2, gamma=.99) you can modify hparams here
+curves = learn.fit(40, steps=16)#, pbar_desc='done')  # ,lr=1e-2, gamma=.99) you can modify hparams here
 frl.print_curve(curves['loss'], label='loss')
 learn.rollout(steps=64)
 frl.print_render(learn, fps=10)
