@@ -11,7 +11,7 @@ readme = 'README.md'
 dependencies = ['torch', 'Cython', 'tqdm', 'plotille', 'tensorboard', 'pillow']
 
 [tool.setuptools]
-packages = ['flashrl']
+packages = ['flashrl', 'flashrl.envs']
 include-package-data = true
 
 [tool.setuptools.package-data]

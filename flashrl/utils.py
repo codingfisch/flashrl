@@ -1,10 +1,42 @@
-import sys
-import time
+import sys, time, random, platform
 import torch
-import random
 import plotille
 import numpy as np
-from PIL import Image, ImageDraw
+
+from .envs import key_maps, emoji_maps
+
+
+def play(env, model=None, with_human=False, steps=None, fps=4, obs='obs', dump=False, with_data=True, idx=0, **kwargs):
+    key_map = key_maps[env.__class__.__name__.lower()]
+    emoji_map = emoji_maps[env.__class__.__name__.lower()]
+    if with_human: print('Press m for model act and q to quit')
+    data, state = {}, None
+    for i in range((10000 if with_human else 64) if steps is None else steps):
+        data.update({'step': i})
+        render(getattr(env, obs)[idx], cursor_up=i and not dump, emoji_map=emoji_map, data=data if with_data else None)
+        acts = env.acts.copy()
+        if model is not None:
+            o = torch.from_numpy(env.obs).to(device=model.actor.weight.device, dtype=model.actor.weight.dtype)
+            with torch.no_grad(): acts, logp, entropy, val, state = model(o, state=state, with_entropy=True)
+            data.update({'model act': acts[idx], 'logp': logp[idx], 'entropy': entropy[idx], 'value': val[idx]})
+            acts = acts.cpu().numpy()
+        key = get_pressed_key() if with_human else f'm{time.sleep(1 / fps)}'[:1]
+        if key == 'q': break
+        acts[idx] = acts[idx] if key == 'm' else key_map[key] if key in key_map else 0
+        env.step(acts, **kwargs)
+        data.update({'act': env.acts[idx], 'reward': env.rewards[idx], 'done': env.dones[idx]})
+
+
+def render(ob, cursor_up=True, emoji_map=None, data=None):
+    if cursor_up: print(f'\033[A\033[{len(ob)}A')
+    ob = 23 * (ob - ob.min()) / (ob.max() - ob.min()) + 232 if emoji_map is None else ob
+    for i, row in enumerate(ob):
+        for o in row.tolist():
+            print(f'\033[48;5;{f"{232 + o}m" if emoji_map is None else f"232m{emoji_map[o]}"}\033[0m', end='')
+        if data is not None:
+            if i < len(data):
+                print(f'{list(data.keys())[i]}: {list(data.values())[i]:.3g}', end='     ')
+        print()
 
 
 def set_seed(seed):
@@ -23,44 +55,17 @@ def print_curve(array, label=None, height=8, width=65):
     print('\n'.join(fig.show().split('\n')[:-2]))
 
 
-def print_render(learn, keys=None, fps=4, env_idx=0, obs=None, emoji_map=None):
-    emoji_map = learn.env.emoji_map if emoji_map is None else emoji_map
-    keys = learn.scalar_data_keys if keys is None else [keys] if isinstance(keys, str) else keys
-    obs = (learn._data['obs'] if obs is None else obs)[env_idx]
-    obs = 23 * (obs - obs.min()) / (obs.max() - obs.min()) + 232 if emoji_map is None else obs
-    obs = obs.byte().cpu().numpy()
-    for i, o in enumerate(obs):
-        print(f'step {i}')
-        for row in range(o.shape[0]):
-            for col in range(o.shape[1]):
-                substr = f'{232 + o[row, col]}m' if emoji_map is None else f'232m{emoji_map[o[row, col]]}'
-                print(f"\033[48;5;{substr}\033[0m", end='')
-            if row < len(keys):
-                print(f'{keys[row]}: {learn._data[keys[row]][env_idx, i]:.2g}', end='')
-            print()
-        if i < len(obs) - 1:
-            time.sleep(1 / fps)
-            print(f'\033[A\033[{len(o) + 1}A')
-
-
-def gif_render(filepath, learn, keys=None, upscale=64, fps=2, loop=0, env_idx=0, obs=None):
-    keys = learn.scalar_data_keys if keys is None else [keys] if isinstance(keys, str) else keys
-    obs = learn._data['obs'] if obs is None else obs
-    obs = (obs - obs.min()) / (obs.max() - obs.min())
-    obs = (255 * obs[env_idx]).byte().cpu().numpy()
-    font_size = obs.shape[-1] * upscale // 32
-    frames = []
-    for i, o in enumerate(obs):
-        im = Image.fromarray(o).resize((upscale*o.shape[-1], upscale*o.shape[-2]), resample=0)
-        draw = ImageDraw.Draw(im)
-        draw.text((0, 0), f'step: {i}', fill=255, font_size=font_size)
-        text = [f'{k}: {learn._data[k][env_idx, i]:.2g}' for k in keys]
-        draw.text((0, im.size[1] - (len(text) + .5) * font_size), '\n'.join(text), fill=255, font_size=font_size)
-        frames.append(im)
-    frames[0].save(filepath, append_images=frames[1:], save_all=True, duration=1000/fps, loop=loop)
-
-
-def print_table(learn, keys=None, fmt='%.2f', env_idx=0):
-    keys = learn.scalar_data_keys if keys is None else [keys] if isinstance(keys, str) else keys
-    x = np.stack([learn._data[k][env_idx].float().cpu().numpy() for k in keys], 1)
-    np.savetxt(fname=sys.stdout.buffer, X=x, fmt=fmt, delimiter='\t', header='\t'.join(keys), comments='')
+def get_pressed_key():
+    if platform.system() == 'Windows':
+        import msvcrt
+        key = msvcrt.getch()
+    else:
+        import tty, termios
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(sys.stdin.fileno())
+            key = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return key

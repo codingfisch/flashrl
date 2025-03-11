@@ -1,22 +1,9 @@
 import flashrl as frl
 frl.set_seed(SEED:=1)
 
-env = frl.envs.Pong(n_agents=2**14)  # replace Pong with Grid to try it (for MultiGrid use commented code block below)
-learn = frl.Learner(env=env.reset(SEED), hidden_size=128, lstm=True)  # even faster with smaller hidden_size/lstm=False
-curves = learn.fit(40, steps=16, pbar_desc='done')  # ,lr=1e-2, gamma=.99) you can modify hparams here
+env = frl.envs.MultiGrid(n_agents=2**14).reset(SEED)  # try one of: Pong, Grid, MultiGrid!
+learn = frl.Learner(env, hidden_size=128, lstm=True)  # faster with lstm=False and smaller hidden_size
+curves = learn.fit(1, steps=16, desc='done')  # ,lr=1e-2, gamma=.99) set hparams here
 frl.print_curve(curves['loss'], label='loss')
-learn.rollout(steps=64)
-frl.print_render(learn, fps=10)
-frl.gif_render('pong.gif', learn, fps=4)
-#frl.print_table(learn)
+frl.play(env, learn.model, with_human=False)  # if env is MultiGrid, try obs='total_obs', with_total_obs=True
 env.close()
-
-# env = frl.envs.MultiGrid(n_agents=2**14, n_agents_per_env=2)
-# learn = frl.Learner(env=env.reset(SEED), hidden_size=128, lstm=True)
-# curves = learn.fit(40, steps=16)
-# frl.print_curve(curves['loss'], label='loss')
-# data = learn.rollout(steps=16, extra_args_list=['total_obs'], with_total_obs=True)
-# learn.rollout(steps=64)
-# frl.print_render(learn, fps=4, obs=data['total_obs'])
-# frl.gif_render('multigrid.gif', learn, fps=4, obs=data['total_obs'])
-# env.close()

@@ -24,32 +24,32 @@ class Learner:
     def scalar_data_keys(self):
         return [k for k, v in self._data.items() if v.ndim == 2]
 
-    def fit(self, iters=40, steps=16, lr=.01, bs=2**13, anneal_lr=True, log=False, pbar_desc='reward', target_kl=None,
-            **hparams):
+    def fit(self, iters=40, steps=16, lr=.01, bs=None, anneal_lr=True, log=False, desc=None, break_func=None, **kwargs):
+        bs = len(self.env.obs) // 2 or bs
         self.setup_data(steps, bs)
-        curves = []
         logger = SummaryWriter() if log else None
         opt = torch.optim.Adam(self.model.parameters(), lr=lr, eps=1e-5)
         pbar = tqdm(range(iters), total=iters)
+        curves = []
         for i in pbar:
             opt.param_groups[0]['lr'] = lr * (1 - i / iters) if anneal_lr else lr
             self.rollout(steps)
-            metrics = ppo(self.model, opt, bs=bs, state=self._ppo_state, **self._data, **hparams)
-            pbar.set_description(f'{pbar_desc}: {self._data[pbar_desc + "s"].mean():.3f}')
-            if i: pbar.set_postfix_str(f'{1e-6 * self._data["acts"].numel() * pbar.format_dict["rate"]:.1f}M steps/s')
+            losses = ppo(self.model, opt, bs=bs, state=self._ppo_state, **self._data, **kwargs)
+            if desc: pbar.set_description(f'{desc}: {losses[desc] if desc in losses else self._data[desc].mean():.3f}')
+            if i: pbar.set_postfix_str(f'{1e-6 * self._data["act"].numel() * pbar.format_dict["rate"]:.1f}M steps/s')
             if log:
-                for k, v in metrics.items(): logger.add_scalar(k, v, global_step=i)
+                for k, v in losses.items(): logger.add_scalar(k, v, global_step=i)
                 for name, param in self.model.named_parameters(): logger.add_histogram(name, param, global_step=i)
-            curves.append(metrics)
-            if target_kl is not None:
-                if metrics['kl'] > target_kl: break
+            curves.append(losses)
+            if break_func is not None:
+                if break_func(i, **self._data, **losses): break
         return {k: [m[k].item() for m in curves] for k in curves[0]}
 
     def setup_data(self, steps, bs=None):
-        values = torch.empty((len(self.env.obs), steps), dtype=self.dtype, device=self.device)
-        obs = torch.empty((*values.shape, *self.env.obs.shape[1:]), dtype=self.dtype, device=self.device)
-        self._data = {'obs': obs, 'values': values, 'acts': values.clone().byte(), 'logprobs': values.clone()}
-        self._np_data = {'rewards': values.char().cpu().numpy(), 'dones': values.char().cpu().numpy()}
+        x = torch.zeros((len(self.env.obs), steps), dtype=self.dtype, device=self.device)
+        obs = torch.zeros((*x.shape, *self.env.obs.shape[1:]), dtype=self.dtype, device=self.device)
+        self._data = {'obs': obs, 'act': x.clone().byte(), 'logprob': x.clone(), 'value': x}
+        self._np_data = {'reward': x.char().cpu().numpy(), 'done': x.char().cpu().numpy()}
         if self.model.lstm is not None:
             zeros = torch.zeros((len(obs), self.model.encoder.out_features), dtype=self.dtype, device=self.device)
             self._rollout_state = (zeros, zeros.clone())
@@ -66,38 +66,38 @@ class Learner:
             with torch.no_grad():
                 act, logp, _, value, state = self.model(o, state=state)
             self._data['obs'][:, i] = o
-            self._data['values'][:, i] = value
-            self._data['acts'][:, i] = act
-            self._data['logprobs'][:, i] = logp
-            self._np_data['rewards'][:, i] = self.env.rewards
-            self._np_data['dones'][:, i] = self.env.dones
+            self._data['act'][:, i] = act
+            self._data['logprob'][:, i] = logp
+            self._data['value'][:, i] = value
+            self._np_data['reward'][:, i] = self.env.rewards
+            self._np_data['done'][:, i] = self.env.dones
             for k in extra_data: extra_data[k].append(self.to_torch(getattr(self.env, k).copy()))
             self.env.step(act.cpu().numpy(), **kwargs)
         self._data.update({k: self.to_torch(v) for k, v in self._np_data.items()})
-        return {k: torch.stack(v, dim=1)  for k, v in extra_data.items()}
+        return {k: torch.stack(v, dim=1) for k, v in extra_data.items()}
 
     def to_torch(self, x, non_blocking=True):
         return torch.from_numpy(x).to(device=self.device, dtype=self.dtype, non_blocking=non_blocking)
 
 
-def ppo(model, opt, obs, values, acts, logprobs, rewards, dones, bs=2**13, gamma=.99, gae_lambda=.95, clip_coef=.1,
+def ppo(model, opt, obs, value, act, logprob, reward, done, bs=2 ** 13, gamma=.99, gae_lambda=.95, clip_coef=.1,
         value_coef=.5, value_clip_coef=.1, entropy_coef=.01, max_grad_norm=.5, norm_adv=True, state=None):
-    advs = get_advantages(values, rewards, dones, gamma=gamma, gae_lambda=gae_lambda)
-    obs, values, acts, logprobs, advs = [xs.view(-1, bs, *xs.shape[2:]) for xs in [obs, values, acts, logprobs, advs]]
-    returns = advs + values
+    advs = get_advantages(value, reward, done, gamma=gamma, gae_lambda=gae_lambda)
+    obs, value, act, logprob, advs = [xs.view(-1, bs, *xs.shape[2:]) for xs in [obs, value, act, logprob, advs]]
+    returns = advs + value
     metrics, metric_keys = [], ['loss', 'policy_loss', 'value_loss', 'entropy_loss', 'kl']
-    for o, old_value, act, old_logp, adv, ret in zip(obs, values, acts, logprobs, advs, returns):
-        _, logp, entropy, value, state = model(o, state=state, act=act)
+    for o, old_value, a, old_logp, adv, ret in zip(obs, value, act, logprob, advs, returns):
+        _, logp, entropy, val, state = model(o, state=state, act=a)
         state = state if model.lstm is None else (state[0].detach(), state[1].detach())
         logratio = logp - old_logp
         ratio = logratio.exp()
         adv = (adv - adv.mean()) / (adv.std() + 1e-8) if norm_adv else adv
         policy_loss = torch.max(-adv * ratio, -adv * ratio.clip(1 - clip_coef, 1 + clip_coef)).mean()
         if value_clip_coef:
-            v_clipped = old_value + (value - old_value).clip(-value_clip_coef, value_clip_coef)
-            value_loss = .5 * torch.max((value - ret) ** 2, (v_clipped - ret) ** 2).mean()
+            v_clipped = old_value + (val - old_value).clip(-value_clip_coef, value_clip_coef)
+            value_loss = .5 * torch.max((val - ret) ** 2, (v_clipped - ret) ** 2).mean()
         else:
-            value_loss = .5 * ((value - ret) ** 2).mean()
+            value_loss = .5 * ((val - ret) ** 2).mean()
         entropy = entropy.mean()
         loss = policy_loss + value_coef * value_loss - entropy_coef * entropy
         opt.zero_grad()
@@ -109,10 +109,10 @@ def ppo(model, opt, obs, values, acts, logprobs, rewards, dones, bs=2**13, gamma
     return {k: torch.stack([values[i] for values in metrics]).mean() for i, k in enumerate(metric_keys)}
 
 
-def get_advantages(values, rewards, dones, gamma=.99, gae_lambda=.95):  # see arxiv.org/abs/1506.02438 eq. (16)-(18)
-    advs = torch.zeros_like(values)
-    not_dones = 1. - dones
-    for t in range(1, dones.shape[1]):
-        delta = rewards[:, -t] + gamma * values[:, -t] * not_dones[:, -t] - values[:, -t-1]
-        advs[:, -t-1] = delta + gamma * gae_lambda * not_dones[:, -t] * advs[:, -t]
+def get_advantages(value, reward, done, gamma=.99, gae_lambda=.95):  # see arxiv.org/abs/1506.02438 eq. (16)-(18)
+    advs = torch.zeros_like(value)
+    not_done = 1. - done
+    for t in range(1, done.shape[1]):
+        delta = reward[:, -t] + gamma * value[:, -t] * not_done[:, -t] - value[:, -t - 1]
+        advs[:, -t-1] = delta + gamma * gae_lambda * not_done[:, -t] * advs[:, -t]
     return advs

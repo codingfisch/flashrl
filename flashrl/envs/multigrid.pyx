@@ -33,7 +33,7 @@ void get_obs(CMultiGrid* env) {
                 char world_x = env->x[i] + x;
                 char world_y = env->y[i] + y;
                 if (world_x < 0 || world_x > env->size - 1 || world_y < 0 || world_y > env->size - 1)  {
-                    env->obs[i * ob_pixels + center + y * ob_size + x] = WALL;
+                    env->obs[i * ob_pixels + center + x * ob_size + y] = WALL;
                 }
             }
         }
@@ -41,13 +41,13 @@ void get_obs(CMultiGrid* env) {
             char dx = env->x[j] - env->x[i];
             char dy = env->y[j] - env->y[i];
             if (abs(dx) <= env->vision && abs(dy) <= env->vision) {
-                env->obs[i * ob_pixels + center + dy * ob_size + dx] = AGENT;
+                env->obs[i * ob_pixels + center + dx * ob_size + dy] = AGENT;
             }
         }
         char dx = env->goal_x - env->x[i];
         char dy = env->goal_y - env->y[i];
         if (abs(dx) <= env->vision && abs(dy) <= env->vision) {
-            env->obs[i * ob_pixels + center + dy * ob_size + dx] = GOAL;
+            env->obs[i * ob_pixels + center + dx * ob_size + dy] = GOAL;
         }
     }
 }
@@ -55,9 +55,9 @@ void get_obs(CMultiGrid* env) {
 void get_total_obs(CMultiGrid* env) {
     memset(env->total_obs, 0, env->size * env->size);
     for (int i = 0; i < env->n_agents_per_env; i++) {
-        env->total_obs[env->x[i] + env->y[i] * env->size] = AGENT;
+        env->total_obs[env->y[i] + env->x[i] * env->size] = AGENT;
     }
-    env->total_obs[env->goal_x + env->goal_y * env->size] = GOAL;
+    env->total_obs[env->goal_y + env->goal_x * env->size] = GOAL;
 }
 
 void c_reset(CMultiGrid* env, bool with_total_obs) {
@@ -80,8 +80,8 @@ void agent_step(CMultiGrid* env, int i, bool with_total_obs) {
     unsigned char act = env->acts[i];
     if (act == LEFT)       env->x[i]--;
     else if (act == RIGHT) env->x[i]++;
-    else if (act == UP)    env->y[i]--;
-    else if (act == DOWN)  env->y[i]++;
+    else if (act == UP)    env->y[i]++;
+    else if (act == DOWN)  env->y[i]--;
     if (env->t > 3 * env->size || env->x[i] < 0 || env->y[i] < 0 || env->x[i] >= env->size || env->y[i] >= env->size) {
         env->dones[i] = 1;
         env->rewards[i] = -1;
@@ -135,10 +135,8 @@ cdef class MultiGrid:
         cdef char[:, :, :] total_obs_memview
         int size
         bint with_total_obs
-        dict _emoji_map
 
-    def __init__(self, n_agents=2**14, n_acts=5, n_agents_per_env=2, vision=3, size=8,
-                 emoji_map={0: '  ', 1: '🧱', 2: '🦠', 3: '🍪'}):
+    def __init__(self, n_agents=2**14, n_acts=5, n_agents_per_env=2, vision=3, size=8):
         self.envs = <CMultiGrid*>calloc(n_agents // n_agents_per_env, sizeof(CMultiGrid))
         self.n_agents = n_agents
         self._n_acts = n_acts
@@ -171,7 +169,6 @@ cdef class MultiGrid:
             env.n_agents_per_env = n_agents_per_env
             env.vision = vision
             env.size = size
-        self._emoji_map = emoji_map
 
     def reset(self, seed=None, with_total_obs=False):
         if seed is not None:
@@ -212,6 +209,3 @@ cdef class MultiGrid:
 
     @property
     def total_obs(self): return self.total_obs_arr
-
-    @property
-    def emoji_map(self): return self._emoji_map

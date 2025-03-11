@@ -133,6 +133,3 @@ cdef class Grid:
 
     @property
     def n_acts(self): return self._n_acts
-
-    @property
-    def emoji_map(self): return self._emoji_map

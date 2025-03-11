@@ -3,4 +3,3 @@ Cython
 tqdm
 plotille
 tensorboard
-pillow
