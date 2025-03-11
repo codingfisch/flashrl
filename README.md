@@ -1,5 +1,5 @@
 # flashrl
-Tiny lib—**200 lines of code**(+150 per env)—running RL with **millions of steps/second** 💨
+RL library that trains with **millions of steps/second** while containing only **~200 lines of code**(+150 per env) 💨
 
 🛠️ `pip install flashrl`, or if you want to modify envs, clone the repo and `pip install -r requirements.txt`
 ## Quick Start 🚀
