@@ -2,7 +2,7 @@
 `flashrl` does RL with **millions of steps/second 💨 while being tiny**: ~200 lines of code(+150 per env)
 
 🛠️ `pip install flashrl` or clone the repo & `pip install -r requirements.txt`
-  - If cloned or when envs were changed, compile: `python setup.py build_ext --inplace`
+  - If cloned (or when envs were changed), compile: `python setup.py build_ext --inplace`
 
 💡 `flashrl` will always be **short**: **Read the code** (+paste into LLM) to understand it!
 ## Quick Start 🚀
