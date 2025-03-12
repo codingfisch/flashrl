@@ -167,7 +167,6 @@ cdef class MultiGrid:
         if seed is not None:
             srand(seed)
         cdef int i
-        cdef with_total_obs = with_total_obs
         for i in range(self.n_agents // self.n_agents_per_env):
             c_reset(&self.envs[i], with_total_obs)
         return self
@@ -175,7 +174,6 @@ cdef class MultiGrid:
     def step(self, np.ndarray acts, with_total_obs=False):
         cdef unsigned char[:] acts_memview = acts
         cdef int i
-        cdef with_total_obs = with_total_obs
         for i in range(self.n_agents // self.n_agents_per_env):
             c_step(&self.envs[i], &acts_memview[self.n_agents_per_env * i], with_total_obs)
 

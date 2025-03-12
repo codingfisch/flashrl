@@ -8,7 +8,7 @@ version = '0.1.0'
 description = 'Fast reinforcement learning 💨'
 authors = [{name = 'codingfisch', email = 'l_fisc17@wwu.de'}]
 readme = 'README.md'
-dependencies = ['torch', 'Cython', 'tqdm', 'plotille', 'tensorboard', 'pillow']
+dependencies = ['torch', 'Cython', 'tqdm', 'plotille', 'tensorboard']
 
 [tool.setuptools]
 packages = ['flashrl', 'flashrl.envs']
