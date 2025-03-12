@@ -76,7 +76,8 @@ To **add custom envs**, use `grid.pyx`, `pong.pyx` or `multigrid.pyx` as a **tem
 
 | `Grid`                | `Pong`                                                                                                    | `MultiGrid`                                                                                   |
 |-----------------------|-----------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
-| Agent must reach goal ![grid](https://github.com/user-attachments/assets/f51c9fea-0ab9-45a1-a52e-446cee9fc593)| Agent must score ![pong](https://github.com/user-attachments/assets/e77332d4-a3f4-432a-b338-98a078fb7dfb)| Agent must reach goal first ![multigrid](https://github.com/user-attachments/assets/bc67c5e5-e820-4cfe-875c-1e545fbddff3)|
+| Agent must reach goal | Agent must score | Agent must reach goal first | 
+|![grid](https://github.com/user-attachments/assets/f51c9fea-0ab9-45a1-a52e-446cee9fc593)| ![pong](https://github.com/user-attachments/assets/e77332d4-a3f4-432a-b338-98a078fb7dfb)| ![multigrid](https://github.com/user-attachments/assets/bc67c5e5-e820-4cfe-875c-1e545fbddff3)|
 
 ## Acknowledgements 🙌
 I want to thank
