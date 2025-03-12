@@ -17,7 +17,7 @@ frl.print_curve(curves['loss'], label='loss')
 frl.play(learn.env, learn.model, fps=8)
 learn.env.close()
 ```
-`.fit` does RL with ~**10 million steps**: `40` iterations ✖ `16` steps ✖ `2**14` agents!
+`.fit` does RL with ~**10 million steps**: `40` iterations × `16` steps × `2**14` agents!
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/6cc1277a-e6e6-4162-98fd-5b76505e9644">
@@ -28,7 +28,7 @@ learn.env.close()
 <details>
   <summary><b>Click here</b>, to read a tiny doc 📑</summary>
 
-`Learner` takes
+`Learner` takes the arguments
 - `env`: RL environment
 - `model`: A `Policy` model
 - `device`: Per default picks `mps` if available, elif `cuda` else `cpu`
@@ -36,7 +36,7 @@ learn.env.close()
 - `compile_no_lstm`: Speedup via `torch.compile` if `model` has no `lstm`
 - `**kwargs`: Passed to the `Policy`, e.g. `hidden_size` or `lstm`
 
-`.fit` takes the arguments
+`Learner.fit` takes the arguments
 - `iters`: Number of iterations
 - `steps`: Number of steps in `rollout`
 - `desc`: Progress bar description (e.g. `'reward'`)
@@ -54,7 +54,7 @@ curves = learn.fit(40, steps=16, stop_func=stop)
 ```
 - `lr`, `anneal_lr` & all args of `ppo`: Hyperparameters
 
-Use `train.py` and take a look into `flashrl/utils.py` to understand how
+The most important functions in `flashrl/utils.py` are
 - `print_curve`: Visualizes the loss across the `iters`
 - `play`: Plays the environment in the terminal and takes
   - `model`: A `Policy` model
@@ -63,16 +63,16 @@ Use `train.py` and take a look into `flashrl/utils.py` to understand how
   - `fps`: Frames per second
   - `obs`: Argument of the env that should be rendered as observation
   - `dump`: If `True`, no frame refresh -> Frames accumulate in the terminal
-  - `idx`: Picks an agent between `0` and `n_agents` (default: `0`)
+  - `idx`: Agent index between `0` and `n_agents` (default: `0`)
 </details>
 
 ## Environments 🕹️
 **Each env is one Cython(=`.pyx`) file** in `flashrl/envs`. **That's it!**
 
 To **add custom envs**, use `grid.pyx`, `pong.pyx` or `multigrid.pyx` as a **template**:
-- `grid.pyx` for **single-agent** envs
-- `pong.pyx` for **1 vs 1 agent** envs (AlphaZero-style)
-- `multigrid.pyx` for **multi-agent** envs
+- `grid.pyx` for **single-agent** envs (~110 LOC)
+- `pong.pyx` for **1 vs 1 agent** envs (~150 LOC)
+- `multigrid.pyx` for **multi-agent** envs (~190 LOC)
 
 | `Grid`                | `Pong`                                                                                                    | `MultiGrid`                                                                                   |
 |-----------------------|-----------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
