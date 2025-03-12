@@ -1,10 +1,10 @@
 name: Build and Publish to PyPI
 
 on:
-  workflow_dispatch:
-#  push:
-#    branches:
-#      - actions
+#  workflow_dispatch:
+  push:
+    branches:
+      - dev
 
 #on:
 ##  push:
