@@ -9,7 +9,7 @@ def test_print_ascii_curve():
     array = [1, 2, 3, 4, 5]
     print_curve(array)
 
-def test_LSTMPolicy_init():
+def test_Policy_init():
     env = Grid(n_agents=1, size=5)
     model = Policy(env, lstm=True)
     assert isinstance(model, Policy), 'Model initialization failed'
@@ -43,7 +43,7 @@ def test_get_advantages():
 
 if __name__ == '__main__':
     test_print_ascii_curve()
-    test_LSTMPolicy_init()
+    test_Policy_init()
     test_learner_init()
     test_learner_fit()
     test_play()

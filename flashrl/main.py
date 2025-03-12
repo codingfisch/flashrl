@@ -16,15 +16,7 @@ class Learner:
             self.model = torch.compile(self.model, fullgraph=True, mode='reduce-overhead')
         self._data, self._np_data, self._rollout_state, self._ppo_state = None, None, None, None
 
-    @property
-    def data_steps(self):
-        return 0 if self._data is None else self._data['obs'].shape[1]
-
-    @property
-    def scalar_data_keys(self):
-        return [k for k, v in self._data.items() if v.ndim == 2]
-
-    def fit(self, iters=40, steps=16, lr=.01, bs=None, anneal_lr=True, log=False, desc=None, break_func=None, **kwargs):
+    def fit(self, iters=40, steps=16, lr=.01, bs=None, anneal_lr=True, log=False, desc=None, stop_func=None, **hparams):
         bs = len(self.env.obs) // 2 or bs
         self.setup_data(steps, bs)
         logger = SummaryWriter() if log else None
@@ -34,15 +26,15 @@ class Learner:
         for i in pbar:
             opt.param_groups[0]['lr'] = lr * (1 - i / iters) if anneal_lr else lr
             self.rollout(steps)
-            losses = ppo(self.model, opt, bs=bs, state=self._ppo_state, **self._data, **kwargs)
+            losses = ppo(self.model, opt, bs=bs, state=self._ppo_state, **self._data, **hparams)
             if desc: pbar.set_description(f'{desc}: {losses[desc] if desc in losses else self._data[desc].mean():.3f}')
             if i: pbar.set_postfix_str(f'{1e-6 * self._data["act"].numel() * pbar.format_dict["rate"]:.1f}M steps/s')
             if log:
                 for k, v in losses.items(): logger.add_scalar(k, v, global_step=i)
                 for name, param in self.model.named_parameters(): logger.add_histogram(name, param, global_step=i)
             curves.append(losses)
-            if break_func is not None:
-                if break_func(i, **self._data, **losses): break
+            if stop_func is not None:
+                if stop_func(**self._data, **losses): break
         return {k: [m[k].item() for m in curves] for k in curves[0]}
 
     def setup_data(self, steps, bs=None):
@@ -59,7 +51,7 @@ class Learner:
 
     def rollout(self, steps, state=None, extra_args_list=None, **kwargs):
         state = self._rollout_state if state is None else state
-        if steps != self.data_steps: self.setup_data(steps)
+        if steps != (0 if self._data is None else self._data['obs'].shape[1]): self.setup_data(steps)
         extra_data = {} if extra_args_list is None else {k: [] for k in extra_args_list}
         for i in range(steps):
             o = self.to_torch(self.env.obs)
@@ -80,7 +72,7 @@ class Learner:
         return torch.from_numpy(x).to(device=self.device, dtype=self.dtype, non_blocking=non_blocking)
 
 
-def ppo(model, opt, obs, value, act, logprob, reward, done, bs=2 ** 13, gamma=.99, gae_lambda=.95, clip_coef=.1,
+def ppo(model, opt, obs, value, act, logprob, reward, done, bs=2**13, gamma=.99, gae_lambda=.95, clip_coef=.1,
         value_coef=.5, value_clip_coef=.1, entropy_coef=.01, max_grad_norm=.5, norm_adv=True, state=None):
     advs = get_advantages(value, reward, done, gamma=gamma, gae_lambda=gae_lambda)
     obs, value, act, logprob, advs = [xs.view(-1, bs, *xs.shape[2:]) for xs in [obs, value, act, logprob, advs]]

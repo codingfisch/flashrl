@@ -6,25 +6,25 @@ import numpy as np
 from .envs import key_maps, emoji_maps
 
 
-def play(env, model=None, with_human=False, steps=None, fps=4, obs='obs', dump=False, with_data=True, idx=0, **kwargs):
+def play(env, model=None, playable=False, steps=None, fps=4, obs='obs', dump=False, with_data=True, idx=0, **kwargs):
     key_map = key_maps[env.__class__.__name__.lower()]
     emoji_map = emoji_maps[env.__class__.__name__.lower()]
-    if with_human: print('Press m for model act and q to quit')
+    if playable: print(f'Press {"".join(key_map)} to act, m for model act and q to quit')
     data, state = {}, None
-    for i in range((10000 if with_human else 64) if steps is None else steps):
+    for i in range((10000 if playable else 64) if steps is None else steps):
         data.update({'step': i})
         render(getattr(env, obs)[idx], cursor_up=i and not dump, emoji_map=emoji_map, data=data if with_data else None)
-        acts = env.acts.copy()
+        acts = np.zeros(len(env.obs), dtype=np.uint8)
         if model is not None:
             o = torch.from_numpy(env.obs).to(device=model.actor.weight.device, dtype=model.actor.weight.dtype)
             with torch.no_grad(): acts, logp, entropy, val, state = model(o, state=state, with_entropy=True)
             data.update({'model act': acts[idx], 'logp': logp[idx], 'entropy': entropy[idx], 'value': val[idx]})
             acts = acts.cpu().numpy()
-        key = get_pressed_key() if with_human else f'm{time.sleep(1 / fps)}'[:1]
+        key = get_pressed_key() if playable else f'm{time.sleep(1 / fps)}'[:1]
         if key == 'q': break
         acts[idx] = acts[idx] if key == 'm' else key_map[key] if key in key_map else 0
         env.step(acts, **kwargs)
-        data.update({'act': env.acts[idx], 'reward': env.rewards[idx], 'done': env.dones[idx]})
+        data.update({'act': acts[idx], 'reward': env.rewards[idx], 'done': env.dones[idx]})
 
 
 def render(ob, cursor_up=True, emoji_map=None, data=None):
