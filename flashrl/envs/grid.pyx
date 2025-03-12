@@ -10,12 +10,10 @@ cdef extern from *:
 #include <string.h>
 
 const char AGENT = 1, GOAL = 2;
-const unsigned char NOOP = 0, LEFT = 1, RIGHT = 2, UP = 3, DOWN = 4;
+const unsigned char LEFT = 1, RIGHT = 2, UP = 3, DOWN = 4;
 
 typedef struct {
-    char *obs;
-    unsigned char *act;
-    char *reward, *done;
+    char *obs, *reward, *done;
     int size, t, x, y, goal_x, goal_y;
 } CGrid;
 
@@ -30,11 +28,10 @@ void c_reset(CGrid* env) {
     env->obs[env->goal_x + env->goal_y * env->size] = GOAL;
 }
 
-void c_step(CGrid* env) {
+void c_step(CGrid* env, unsigned char act) {
     env->reward[0] = 0;
     env->done[0] = 0;
     env->obs[env->x + env->y * env->size] = 0;
-    unsigned char act = env->act[0];
     if (act == LEFT)       env->x--;
     else if (act == RIGHT) env->x++;
     else if (act == UP)    env->y--;
@@ -59,48 +56,41 @@ void c_step(CGrid* env) {
 
     ctypedef struct CGrid:
         char *obs
-        unsigned char *act
         char *reward
         char *done
         int size, t, x, y, goal_x, goal_y
 
     void c_reset(CGrid *env)
-    void c_step(CGrid *env)
+    void c_step(CGrid *env, unsigned char act)
 
 
 cdef class Grid:
     cdef:
         CGrid *envs
         int n_agents, _n_acts
-        np.ndarray obs_arr, acts_arr, rewards_arr, dones_arr
+        np.ndarray obs_arr, rewards_arr, dones_arr
         cdef char[:, :, :] obs_memview
-        cdef unsigned char[:] acts_memview
         cdef char[:] rewards_memview
         cdef char[:] dones_memview
         int size
-        dict _emoji_map
 
-    def __init__(self, n_agents=2**14, n_acts=5, size=8, emoji_map={0: '  ', 1: '🦠', 2: '🍪'}):
+    def __init__(self, n_agents=2**14, n_acts=5, size=8):
         self.envs = <CGrid*> calloc(n_agents, sizeof(CGrid))
         self.n_agents = n_agents
         self._n_acts = n_acts
         self.obs_arr = np.zeros((n_agents, size, size), dtype=np.int8)
-        self.acts_arr = np.zeros(n_agents, dtype=np.uint8)
         self.rewards_arr = np.zeros(n_agents, dtype=np.int8)
         self.dones_arr = np.zeros(n_agents, dtype=np.int8)
         self.obs_memview = self.obs_arr
-        self.acts_memview = self.acts_arr
         self.rewards_memview = self.rewards_arr
         self.dones_memview = self.dones_arr
         cdef int i
         for i in range(n_agents):
             env = &self.envs[i]
             env.obs = &self.obs_memview[i, 0, 0]
-            env.act = &self.acts_memview[i]
             env.reward = &self.rewards_memview[i]
             env.done = &self.dones_memview[i]
             env.size = size
-        self._emoji_map = emoji_map
 
     def reset(self, seed=None):
         if seed is not None:
@@ -111,19 +101,16 @@ cdef class Grid:
         return self
 
     def step(self, np.ndarray acts):
-        self.acts_arr[:] = acts[:]
+        cdef unsigned char[:] acts_memview = acts
         cdef int i
         for i in range(self.n_agents):
-            c_step(&self.envs[i])
+            c_step(&self.envs[i], acts_memview[i])
 
     def close(self):
         free(self.envs)
 
     @property
     def obs(self): return self.obs_arr
-
-    @property
-    def acts(self): return self.acts_arr
 
     @property
     def rewards(self): return self.rewards_arr

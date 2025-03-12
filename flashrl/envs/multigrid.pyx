@@ -14,9 +14,7 @@ const char WALL = 1, AGENT = 2, GOAL = 3;
 const unsigned char NOOP = 0, DOWN = 1, UP = 2, LEFT = 3, RIGHT = 4;
 
 typedef struct {
-    char *obs;
-    unsigned char *acts;
-    char *rewards, *dones;
+    char *obs, *rewards, *dones;
     unsigned char *x, *y;
     char *total_obs;
     int n_agents_per_env, vision, size, t, goal_x, goal_y;
@@ -60,7 +58,7 @@ void get_total_obs(CMultiGrid* env) {
     env->total_obs[env->goal_y + env->goal_x * env->size] = GOAL;
 }
 
-void c_reset(CMultiGrid* env, bool with_total_obs) {
+void c_reset(CMultiGrid* env, char with_total_obs) {
     env->t = 0;
     env->goal_x = rand() % env->size;
     env->goal_y = rand() % env->size;
@@ -69,15 +67,15 @@ void c_reset(CMultiGrid* env, bool with_total_obs) {
         env->y[i] = rand() % env->size;
     }
     get_obs(env);
-    if (with_total_obs) {
+    if (with_total_obs > 0) {
         get_total_obs(env);
     }
 }
 
-void agent_step(CMultiGrid* env, int i, bool with_total_obs) {
+void agent_step(CMultiGrid* env, unsigned char *acts, int i, char with_total_obs) {
     env->rewards[i] = 0;
     env->dones[i] = 0;
-    unsigned char act = env->acts[i];
+    unsigned char act = acts[i];
     if (act == LEFT)       env->x[i]--;
     else if (act == RIGHT) env->x[i]++;
     else if (act == UP)    env->y[i]++;
@@ -96,12 +94,12 @@ void agent_step(CMultiGrid* env, int i, bool with_total_obs) {
     }
 }
 
-void c_step(CMultiGrid* env, bool with_total_obs) {
+void c_step(CMultiGrid* env, unsigned char *acts, bool with_total_obs) {
     for (int i = 0; i < env->n_agents_per_env; i++){
-        agent_step(env, i, with_total_obs);
+        agent_step(env, acts, i, with_total_obs);
     }
     get_obs(env);
-    if (with_total_obs) {
+    if (with_total_obs > 0) {
         get_total_obs(env);
     }
     env->t++;
@@ -110,7 +108,6 @@ void c_step(CMultiGrid* env, bool with_total_obs) {
 
     ctypedef struct CMultiGrid:
         char *obs
-        unsigned char *acts
         char *rewards
         char *dones
         unsigned char *x
@@ -118,16 +115,15 @@ void c_step(CMultiGrid* env, bool with_total_obs) {
         char *total_obs
         int n_agents_per_env, vision, size, t, goal_x, goal_y
 
-    void c_reset(CMultiGrid* env, bint with_total_obs)
-    void c_step(CMultiGrid* env, bint with_total_obs)
+    void c_reset(CMultiGrid* env, char with_total_obs)
+    void c_step(CMultiGrid* env, unsigned char *acts, char with_total_obs)
 
 cdef class MultiGrid:
     cdef:
         CMultiGrid* envs
         int n_agents, _n_acts, _n_agents_per_env
-        np.ndarray obs_arr, acts_arr, rewards_arr, dones_arr, x_arr, y_arr, total_obs_arr
+        np.ndarray obs_arr, rewards_arr, dones_arr, x_arr, y_arr, total_obs_arr
         cdef char[:, :, :] obs_memview
-        cdef unsigned char[:] acts_memview
         cdef char[:] rewards_memview
         cdef char[:] dones_memview
         cdef unsigned char[:] x_memview
@@ -142,14 +138,12 @@ cdef class MultiGrid:
         self._n_acts = n_acts
         self._n_agents_per_env = n_agents_per_env
         self.obs_arr = np.zeros((n_agents, 2*vision+1, 2*vision+1), dtype=np.int8)
-        self.acts_arr = np.zeros(n_agents, dtype=np.uint8)
         self.rewards_arr = np.zeros(n_agents, dtype=np.int8)
         self.dones_arr = np.zeros(n_agents, dtype=np.int8)
         self.x_arr = np.zeros(n_agents, dtype=np.uint8)
         self.y_arr = np.zeros(n_agents, dtype=np.uint8)
         self.total_obs_arr = np.zeros((n_agents // n_agents_per_env, size, size), dtype=np.int8)
         self.obs_memview = self.obs_arr
-        self.acts_memview = self.acts_arr
         self.rewards_memview = self.rewards_arr
         self.dones_memview = self.dones_arr
         self.x_memview = self.x_arr
@@ -160,7 +154,6 @@ cdef class MultiGrid:
             env = &self.envs[i]
             i_agent = n_agents_per_env * i
             env.obs = &self.obs_memview[i_agent, 0, 0]
-            env.acts = &self.acts_memview[i_agent]
             env.rewards = &self.rewards_memview[i_agent]
             env.dones = &self.dones_memview[i_agent]
             env.x = &self.x_memview[i_agent]
@@ -174,26 +167,23 @@ cdef class MultiGrid:
         if seed is not None:
             srand(seed)
         cdef int i
-        #cdef bool c_with_total_obs = with_total_obs
+        cdef with_total_obs = with_total_obs
         for i in range(self.n_agents // self.n_agents_per_env):
             c_reset(&self.envs[i], with_total_obs)
         return self
 
     def step(self, np.ndarray acts, with_total_obs=False):
-        self.acts_arr[:] = acts[:]
+        cdef unsigned char[:] acts_memview = acts
         cdef int i
-        #cdef bool c_with_total_obs = with_total_obs
+        cdef with_total_obs = with_total_obs
         for i in range(self.n_agents // self.n_agents_per_env):
-            c_step(&self.envs[i], with_total_obs)
+            c_step(&self.envs[i], &acts_memview[self.n_agents_per_env * i], with_total_obs)
 
     def close(self):
         free(self.envs)
 
     @property
     def obs(self): return self.obs_arr
-
-    @property
-    def acts(self): return self.acts_arr
 
     @property
     def rewards(self): return self.rewards_arr

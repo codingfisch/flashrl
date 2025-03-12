@@ -11,12 +11,10 @@ cdef extern from *:
 #include <string.h>
 
 const char PADDLE = 1, BALL = 2;
-const unsigned char NOOP = 0, UP = 1, DOWN = 2;
+const unsigned char UP = 1, DOWN = 2;
 
 typedef struct {
-    char *obs0, *obs1;
-    unsigned char *act0, *act1;
-    char *reward0, *reward1, *done0, *done1;
+    char *obs0, *obs1, *reward0, *reward1, *done0, *done1;
     int size_x, size_y, t, paddle0_x, paddle0_y, paddle1_x, paddle1_y, x, dx;
     float y, dy, max_dy;
 } CPong;
@@ -50,12 +48,10 @@ void c_reset(CPong* env) {
     set_obs(env, PADDLE, BALL);
 }
 
-void c_step(CPong* env) {
+void c_step(CPong* env, unsigned char act0, unsigned char act1) {
     env->reward0[0] = env->reward1[0] = 0;
     env->done0[0] = env->done1[0] = 0;
     set_obs(env, 0, 0);
-    unsigned char act0 = env->act0[0];
-    unsigned char act1 = env->act1[0];
     if (act0 == UP && env->paddle0_y > 0) env->paddle0_y--;
     if (act0 == DOWN && env->paddle0_y < env->size_y - 2) env->paddle0_y++;
     if (act1 == UP && env->paddle1_y > 0) env->paddle1_y--;
@@ -87,8 +83,6 @@ void c_step(CPong* env) {
     ctypedef struct CPong:
         char *obs0
         char *obs1
-        unsigned char *act0
-        unsigned char *act1
         char *reward0
         char *reward1
         char *done0
@@ -97,15 +91,14 @@ void c_step(CPong* env) {
         float y, dy, max_dy
 
     void c_reset(CPong* env)
-    void c_step(CPong* env)
+    void c_step(CPong* env, unsigned char act0, unsigned char act1)
 
 cdef class Pong:
     cdef:
         CPong* envs
         int n_agents, _n_acts
-        np.ndarray obs_arr, acts_arr, rewards_arr, dones_arr
+        np.ndarray obs_arr, rewards_arr, dones_arr
         cdef char[:, :, :] obs_memview
-        cdef unsigned char[:] acts_memview
         cdef char[:] rewards_memview
         cdef char[:] dones_memview
         int size_x, size_y
@@ -116,18 +109,15 @@ cdef class Pong:
         self.n_agents = n_agents
         self._n_acts = n_acts
         self.obs_arr = np.zeros((n_agents, size_y, size_x), dtype=np.int8)
-        self.acts_arr = np.zeros(n_agents, dtype=np.uint8)
         self.rewards_arr = np.zeros(n_agents, dtype=np.int8)
         self.dones_arr = np.zeros(n_agents, dtype=np.int8)
         self.obs_memview = self.obs_arr
-        self.acts_memview = self.acts_arr
         self.rewards_memview = self.rewards_arr
         self.dones_memview = self.dones_arr
         cdef int i
         for i in range(n_agents // 2):
             env = &self.envs[i]
             env.obs0, env.obs1 = &self.obs_memview[2 * i, 0, 0], &self.obs_memview[2 * i + 1, 0, 0]
-            env.act0, env.act1 = &self.acts_memview[2 * i], &self.acts_memview[2 * i + 1]
             env.reward0, env.reward1 = &self.rewards_memview[2 * i], &self.rewards_memview[2 * i + 1]
             env.done0, env.done1 = &self.dones_memview[2 * i], &self.dones_memview[2 * i + 1]
             env.size_x = size_x
@@ -143,19 +133,16 @@ cdef class Pong:
         return self
 
     def step(self, np.ndarray acts):
-        self.acts_arr[:] = acts[:]
+        cdef unsigned char[:] acts_memview = acts
         cdef int i
         for i in range(self.n_agents // 2):
-            c_step(&self.envs[i])
+            c_step(&self.envs[i], acts_memview[2 * i], acts_memview[2 * i + 1])
 
     def close(self):
         free(self.envs)
 
     @property
     def obs(self): return self.obs_arr
-
-    @property
-    def acts(self): return self.acts_arr
 
     @property
     def rewards(self): return self.rewards_arr
