@@ -1,55 +1,70 @@
 # flashrl
-RL library that trains with **millions of steps/second** while containing only **~200 lines of code**(+150 per env) 💨
+RL library that trains with **millions of steps/second 💨 while being tiny**: ~200 lines of code(+150 per env)
 
-🛠️ `pip install flashrl`, or if you want to modify envs, clone the repo and `pip install -r requirements.txt`
+🛠️ `pip install flashrl` or clone the repo and `pip install -r requirements.txt`
+
+🛠️ If cloned (or when envs were changed/added), compile: `python setup.py build_ext --inplace`
+
+💡 `flashrl` will always be **short**: **Read the code** (+paste into LLM) to understand it!
 ## Quick Start 🚀
-0. If cloned, compile envs: `python setup.py build_ext --inplace`
-1. Start training: `python train.py`
-2. See the magic unfold in the terminal 🪄
-
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/6cc1277a-e6e6-4162-98fd-5b76505e9644">
-</p>
-
-## Usage 💡
-`flashrl` will always be **short**: **Read the code** (+paste into ChatGPT) to understand it!
-
-Here's a **minimal example** to get you going:
-
 `flashrl` uses a `Learner` that holds an `env` and a `model` (default: `Policy` with LSTM)
 
 ```python
 import flashrl as frl
 
-learn = frl.Learner(env=frl.envs.Pong(n_agents=2**14))
-curves = learn.fit(40, steps=16, pbar_desc='done')
+learn = frl.Learner(frl.envs.Pong(n_agents=2**14))
+curves = learn.fit(40, steps=16, desc='done')
 frl.print_curve(curves['loss'], label='loss')
-frl.print_render(learn, fps=10)
+frl.play(learn.env, learn.model, fps=8)
 learn.env.close()
 ```
-`.fit` triggers RL with
-- **40** iterations...
-- ...**16** steps per iteration...
-- ...in `Pong` holding `2**14`=**16384** agents
+`.fit` triggers RL with ~**10 million steps**: `40` iterations with `16` steps with `2**14` agents!
 
-resulting in training with (40 * 16 * 16384=)~**10 million steps**!
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/6cc1277a-e6e6-4162-98fd-5b76505e9644">
+</p>
+
+**Run it yourself via `python train.py` and play against the AI** 🪄
 
 <details>
   <summary><b>Click here</b>, to read a tiny doc 📑</summary>
 
+`Learner` takes
+- `env`: RL environment
+- `model`: A `Policy` model
+- `device`: Per default picks `mps` if available, elif `cuda` else `cpu`
+- `dtype`: Per default `torch.bfloat16` if device is `cuda` else `torch.float32`
+- `compile_no_lstm`: Speedup via `torch.compile` if `model` has no `lstm`
+- `**kwargs`: Passed to the `Policy`, e.g. `hidden_size` or `lstm`
+
 `.fit` takes the arguments
 - `iters`: Number of iterations
 - `steps`: Number of steps in `rollout`
-- `pbar_desc`: Progress bar description (default: `'reward'`)
+- `desc`: Progress bar description (e.g. `'reward'`)
 - `log`: If `True`, `tensorboard` logging is enabled 
   - run `tensorboard --logdir=runs`and visit `http://localhost:6006` in the browser!
-- `lr`, `anneal_lr`, `target_fl` + all args of `ppo`: Hyperparameters
+- `stop_func`: Function that stops training if it returns `True` e.g.
 
-Take a look at `train.py` to see how to use the `utils`-functions
+```python
+...
+def stop(kl, **kwargs):
+  return kl > .1
+
+curves = learn.fit(40, steps=16, stop_func=stop)
+...
+```
+- `lr`, `anneal_lr` & all args of `ppo`: Hyperparameters
+
+Use `train.py` and take a look into `flashrl/utils.py` to understand how
 - `print_curve`: Visualizes the loss across the `iters`
-- `print_render`: Shows data of the last `rollout` in the terminal
-- `gif_render`: Shows the same, saved as a GIF
-- `print_table`: Shows a table of values, acts, logprobs, reward and dones of the last `rollout`
+- `play`: Plays the environment in the terminal and takes
+  - `model`: A `Policy` model
+  - `playable`: If `True`, allows you to act (or decide to let the model act)
+  - `steps`: Number of steps
+  - `fps`: Frames per second
+  - `obs`: Argument of the env that should be rendered as observation
+  - `dump`: If `True`, no frame refresh -> Frames accumulate in the terminal
+  - `idx`: Picks an agent between `0` and `n_agents` (default: `0`)
 </details>
 
 ## Environments 🕹️
