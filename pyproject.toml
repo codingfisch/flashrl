@@ -4,7 +4,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'flashrl'
-version = '0.1.0'
+version = '0.1.2'
 description = 'Fast reinforcement learning 💨'
 authors = [{name = 'codingfisch', email = 'l_fisc17@wwu.de'}]
 readme = 'README.md'
