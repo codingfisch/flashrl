@@ -1,10 +1,10 @@
 # flashrl
-`flashrl` does RL with **millions of steps/second 💨 while being tiny**: ~200 lines of code(+150 per env)
+`flashrl` does RL with **millions of steps/second 💨 while being tiny**: ~200 lines of code
 
 🛠️ `pip install flashrl` or clone the repo & `pip install -r requirements.txt`
   - If cloned (or when envs were changed), compile: `python setup.py build_ext --inplace`
 
-💡 `flashrl` will always be **short**: **Read the code** (+paste into LLM) to understand it!
+💡 `flashrl` will always be **tiny**: **Read the code** (+paste into LLM) to understand it!
 ## Quick Start 🚀
 `flashrl` uses a `Learner` that holds an `env` and a `model` (default: `Policy` with LSTM)
 
@@ -17,7 +17,7 @@ frl.print_curve(curves['loss'], label='loss')
 frl.play(learn.env, learn.model, fps=8)
 learn.env.close()
 ```
-`.fit` triggers RL with ~**10 million steps**: `40` iterations with `16` steps with `2**14` agents!
+`.fit` does RL with ~**10 million steps**: `40` iterations ✖ `16` steps ✖ `2**14` agents!
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/6cc1277a-e6e6-4162-98fd-5b76505e9644">
