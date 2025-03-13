@@ -17,7 +17,7 @@ class Learner:
         self._data, self._np_data, self._rollout_state, self._ppo_state = None, None, None, None
 
     def fit(self, iters=40, steps=16, lr=.01, bs=None, anneal_lr=True, log=False, desc=None, stop_func=None, **hparams):
-        bs = len(self.env.obs) // 2 or bs
+        bs = bs or len(self.env.obs) // 2
         self.setup_data(steps, bs)
         logger = SummaryWriter() if log else None
         opt = torch.optim.Adam(self.model.parameters(), lr=lr, eps=1e-5)
