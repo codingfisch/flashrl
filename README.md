@@ -33,7 +33,7 @@ learn.env.close()
 - `model`: A `Policy` model
 - `device`: Per default picks `mps` or `cuda` if available else `cpu`
 - `dtype`: Per default `torch.bfloat16` if device is `cuda` else `torch.float32`
-- `compile_no_lstm`: Speedup via `torch.compile` if `model` has no `lstm`
+- `jit`: Potential speedup via model compilation via `torch.compile`
 - `**kwargs`: Passed to the `Policy`, e.g. `hidden_size` or `lstm`
 
 `Learner.fit` takes the arguments

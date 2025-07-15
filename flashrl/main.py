@@ -7,13 +7,12 @@ DEVICE = 'mps' if torch.mps.is_available() else 'cuda' if torch.cuda.is_availabl
 
 
 class Learner:
-    def __init__(self, env, model=None, device=None, dtype=None, compile_no_lstm=False, **kwargs):
+    def __init__(self, env, model=None, device=None, dtype=None, jit=False, **kwargs):
         self.env = env
         self.device = DEVICE if device is None else device
         self.dtype = dtype if dtype is not None else torch.bfloat16 if self.device == 'cuda' else torch.float32
         self.model = Policy(self.env, **kwargs).to(self.device, self.dtype) if model is None else model
-        if self.model.lstm is None and compile_no_lstm:  # only no-lstm policy gets faster from torch.compile
-            self.model = torch.compile(self.model, fullgraph=True, mode='reduce-overhead')
+        if jit: self.model = torch.compile(self.model, fullgraph=True, mode='reduce-overhead')
         self._data, self._np_data, self._rollout_state, self._ppo_state = None, None, None, None
 
     def fit(self, iters=40, steps=16, lr=.01, bs=None, anneal_lr=True, log=False, desc=None, stop_func=None, **hparams):
