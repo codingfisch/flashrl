@@ -14,17 +14,20 @@ def play(env, model=None, playable=False, steps=None, fps=4, obs='obs', dump=Fal
     for i in range((10000 if playable else 64) if steps is None else steps):
         data.update({'step': i})
         render(getattr(env, obs)[idx], cursor_up=i and not dump, emoji_map=emoji_map, data=data if with_data else None)
-        acts = np.zeros(len(env.obs), dtype=np.uint8)
+        act = np.zeros(len(env.obs), dtype=np.uint8)
         if model is not None:
-            o = torch.from_numpy(env.obs).to(device=model.actor.weight.device, dtype=model.actor.weight.dtype)
-            with torch.no_grad(): acts, logp, entropy, val, state = model(o, state=state, with_entropy=True)
-            data.update({'model act': acts[idx], 'logp': logp[idx], 'entropy': entropy[idx], 'value': val[idx]})
-            acts = acts.cpu().numpy()
+            o = torch.from_numpy(env.obs).to(device=model.decoder.weight.device, dtype=model.decoder.weight.dtype)
+            with torch.no_grad(): logp, val, state = model(o, state=state)
+            act = torch.multinomial(logp.exp(), 1)[:, 0].byte()
+            logp = logp.gather(1, act[:, None].long())[:, 0]
+            entropy = -(logp * logp.exp())
+            data.update({'model act': act[idx], 'logp': logp[idx], 'entropy': entropy[idx], 'value': val[idx]})
+            act = act.cpu().numpy()
         key = get_pressed_key() if playable else f'm{time.sleep(1 / fps)}'[:1]
         if key == 'q': break
-        acts[idx] = acts[idx] if key == 'm' else key_map[key] if key in key_map else 0
-        env.step(acts, **kwargs)
-        data.update({'act': acts[idx], 'reward': env.rewards[idx], 'done': env.dones[idx]})
+        act[idx] = act[idx] if key == 'm' else key_map[key] if key in key_map else 0
+        env.step(act, **kwargs)
+        data.update({'act': act[idx], 'reward': env.rewards[idx], 'done': env.dones[idx]})
 
 
 def render(ob, cursor_up=True, emoji_map=None, data=None):
